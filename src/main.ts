@@ -5,7 +5,7 @@ import { join } from 'path';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
-
+  const port = process.env.PORT || 4000;
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix("api/v1");
   app.enableCors();
@@ -18,7 +18,7 @@ async function bootstrap() {
     })
   );
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
-  await app.listen(3000);
+  await app.listen(port);
   
 }
 bootstrap();
