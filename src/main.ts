@@ -8,7 +8,7 @@ import * as fs from 'fs';
 async function bootstrap() {
  
 
-  const port = process.env.PORT || 4000;
+  
   const app = await NestFactory.create(AppModule);
   
   app.setGlobalPrefix("api/v1");
@@ -22,13 +22,13 @@ async function bootstrap() {
     })
   );
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
-  await app.listen(port);
+
   
   
 
   
 
-  await app.listen(3000); 
+  await app.listen(4000,'0.0.0.0'); 
 
 
 }
