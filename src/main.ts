@@ -6,15 +6,10 @@ import { ValidationPipe } from '@nestjs/common';
 import * as fs from 'fs';
 
 async function bootstrap() {
-  const httpsOptions = {
-    key: fs.readFileSync('cert/private-key.pem'),   // Ruta a tu clave privada
-    cert: fs.readFileSync('cert/certificate.pem'),  // Ruta a tu certificado
-  };
+ 
 
   const port = process.env.PORT || 4000;
-  const app = await NestFactory.create(AppModule,{
-    httpsOptions
-  });
+  const app = await NestFactory.create(AppModule);
   
   app.setGlobalPrefix("api/v1");
   app.enableCors();
