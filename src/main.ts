@@ -6,20 +6,13 @@ import { ValidationPipe } from '@nestjs/common';
 import * as fs from 'fs';
 
 async function bootstrap() {
-  const httpsOptions = {
-    key: fs.readFileSync('/cert/private-key.pem'), // Cambia al archivo real
-    cert: fs.readFileSync('/cert/certificate.pem'), // Cambia al archivo real
-  };
+
 
   
-  const app = await NestFactory.create(AppModule, { httpsOptions });
+  const app = await NestFactory.create(AppModule, { cors:true });
   
   app.setGlobalPrefix("api/v1");
-  app.enableCors({
-    origin: 'https://fenfurnacional.cl', // Dominio del frontend
-    methods: 'GET, POST, PUT, DELETE, OPTIONS',
-    allowedHeaders: 'Content-Type, Authorization',
-  });
+  
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
