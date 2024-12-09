@@ -73,7 +73,30 @@ export class JugadoresController {
   private jugadoresRepository: Repository<Jugador>,) {}
 
   @Post()
-  create(@Body() createJugadorDto: CreateJugadorDto) {
+  @UseInterceptors(FileInterceptor('foto', {
+    storage: diskStorage({
+      destination: './uploads', // Carpeta donde se guardarán las fotos
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const extension = extname(file.originalname);
+        const filename = `${uniqueSuffix}${extension}`;
+        cb(null, filename);
+      },
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 }, // Límite de tamaño 5MB
+    fileFilter: (req, file, cb) => {
+      if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+        return cb(new Error('Solo se permiten archivos de imagen (jpg, jpeg, png).'), false);
+      }
+      cb(null, true);
+    },
+  }))
+  async create(
+    @Body() createJugadorDto: CreateJugadorDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const filePath = `uploads/${file.filename}`; // Ruta relativa de la foto
+    createJugadorDto.foto = filePath; // Asignar la ruta de la foto al DTO
     return this.jugadoresService.create(createJugadorDto);
   }
 
@@ -92,35 +115,52 @@ export class JugadoresController {
 
 
   @Post('create')
-@UseInterceptors(FileInterceptor('image', { storage }))
-async createPlayer(
-  @UploadedFile() file: Express.Multer.File,
-  @Body() playerData: CreateJugadorDto
-) {
-  if (!file) {
-    throw new BadRequestException('Image file is required');
+  @UseInterceptors(
+    FileInterceptor('foto', {
+      storage: diskStorage({
+        destination: './uploads/players', // Carpeta donde se almacenarán las imágenes
+        filename: (req, file, callback) => {
+          // Generar un nombre de archivo único (timestamp + extensión)
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          const filename = `player-${uniqueSuffix}${ext}`;
+          callback(null, filename);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 }, // Límite de 5MB
+      fileFilter: (req, file, callback) => {
+        const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+          return callback(new BadRequestException('Only .png, .jpg and .jpeg formats are allowed'), false);
+        }
+        callback(null, true);
+      },
+    })
+  )
+  async createPlayer(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() playerData: CreateJugadorDto
+  ) {
+    // Validar si el archivo fue cargado correctamente
+    if (!file) {
+      throw new BadRequestException('Se requiere una imagen para crear el jugador.');
+    }
+
+    // Obtener la ruta de la imagen
+    const imagePath = `uploads/players/${file.filename}`;
+
+    // Crear el jugador con los datos proporcionados
+    const player = await this.jugadoresService.createPlayer(
+      { ...playerData }, // DTO con los datos del jugador
+      imagePath         // Ruta de la imagen
+    );
+
+    // Confirmar la creación del jugador
+    return {
+      message: 'Jugador creado con éxito',
+      player,
+    };
   }
-
-  const imagePath = `uploads/players/${file.filename}`;
-
-  const player = await this.jugadoresService.createPlayer({
-    ...playerData,
-    foto: imagePath, // Guarda imagePath en el campo correcto (por ejemplo, 'foto')
-  });
-
-  console.log('Uploaded file:', file); // Verificar que el archivo se recibe correctamente
-console.log('Player data:', playerData); 
-
-  
-  return {
-    message: 'Jugador created successfully',
-    player: {
-      ...player,
-      imagePath: `http://localhost:3000/api/v1/${imagePath}`,    // Incluye imagePath en la respuesta
-    },
-  };
-}
-
 
 
 
@@ -300,32 +340,35 @@ async buscarPorClub(@Param('club_deportivo') club_deportivo: string, @Req() req)
 
   @Get('photo/:id')
   getPhotoByJugadorId(@Param('id') id: number, @Res() res: Response) {
-    const directoryPath = join(process.cwd(), 'uploads/jugadores');
-    
+    const directoryPath = join(process.cwd(), './uploads/players');
     console.log('Directory Path:', directoryPath);
     console.log('Player ID:', id);
-  
-    // Check if the directory exists
+    
+    // Verificar si el directorio existe
     if (!fs.existsSync(directoryPath)) {
-      console.error('Directory does not exist');
-      return res.status(404).json({ message: 'Directory does not exist' });
+      console.error('El directorio no existe:', directoryPath);
+      return res.status(404).json({ message: 'Directorio no existe' });
     }
   
+    // Obtener todos los archivos de la carpeta
     const files = fs.readdirSync(directoryPath);
-    console.log('Files in Directory:', files); // Log files for debugging
+
   
-    // Search for a file that starts with the player ID
-    const playerImage = files.find((file) => {
-      console.log('Checking file:', file);
-      return file.startsWith(id.toString());
-    });
+    // Buscar un archivo que contenga el ID en su nombre
+    const playerImage = files.find((file) => /player-\d+-\d+/.test(file)); // Busca el ID en cualquier parte del nombre del archivo
+
   
     if (playerImage) {
-      console.log('Player Image Found:', playerImage);
+      console.log('Imagen del jugador encontrada:', playerImage);
       const filePath = join(directoryPath, playerImage);
-      return res.sendFile(filePath);
+      res.sendFile(filePath, (err) => {
+        if (err) {
+          console.error('Error al enviar el archivo:', err);
+          res.status(404).json({ message: 'No se pudo enviar la imagen' });
+        }
+      });
     } else {
-      console.error('Image not found for player ID:', id);
+      console.error('Imagen no encontrada para el jugador con ID:', id);
       return res.status(404).json({ message: 'Imagen no encontrada para el jugador' });
     }
   }
