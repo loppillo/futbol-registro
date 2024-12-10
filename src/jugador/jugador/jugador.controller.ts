@@ -449,6 +449,8 @@ async buscarPorClub(@Param('club_deportivo') club_deportivo: string, @Req() req)
     return { filePath }; // Esto es lo que regresamos al frontend
   }
 
+
+  
 }
 
 
