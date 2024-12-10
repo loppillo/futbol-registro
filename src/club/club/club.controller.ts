@@ -5,6 +5,8 @@ import { UpdateClubDto } from './dto/update-club.dto';
 import { Club } from './entities/club.entity';
 import { FileInterceptor } from '@nestjs/platform-express/multer';
 import * as path from 'path';
+import * as fs from 'fs';
+import { diskStorage } from 'multer';
 
 @Controller('club')
 export class ClubController {
@@ -30,39 +32,33 @@ export class ClubController {
     return this.clubService.delete(id);
   }
 
-
   @Post('import')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/jugadores', // Custom folder for uploads
+        filename: (req, file, callback) => {
+          const filename = `${Date.now()}-${file.originalname}`;
+          callback(null, filename); // Set the filename
+        },
+      }),
+    }),
+  )
   async importClubs(@UploadedFile() file: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('No se proporcionó ningún archivo.');
+    const imagePath = file.path;
+    if (!fs.existsSync(imagePath)) {
+      throw new BadRequestException('El archivo no existe en el servidor.');
     }
-
-    // Validar que sea un archivo Excel
-    const validExtensions = ['.xls', '.xlsx'];
-    const fileExtension = path.extname(file.originalname);
-    if (!validExtensions.includes(fileExtension)) {
-      throw new BadRequestException(
-        'El archivo debe ser un documento Excel (.xls o .xlsx).',
-      );
-    }
-
-    // Guardar temporalmente el archivo en el servidor
-    const filePath = path.join(__dirname, '../../uploads', file.filename);
-
+  
     try {
-      // Llama al servicio para procesar el archivo
-      const result = await this.clubService.importClubsFromExcel(filePath);
+      // Procesa el archivo (llama a tu servicio)
+      const result = await this.clubService.importClubsFromExcel(imagePath);
       return result;
     } catch (error) {
-      throw new BadRequestException(
-        `Error al importar los datos: ${error.message}`,
-      );
-    } finally {
-      // Elimina el archivo temporal después del procesamiento si es necesario
-      // fs.unlinkSync(filePath);
-    }
+      throw new BadRequestException(`Error al importar: ${error.message}`);
+    } // Get the correct path from the uploaded file
+    
   }
 
-
 }
+
