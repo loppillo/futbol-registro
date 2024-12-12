@@ -12,7 +12,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
   app.setGlobalPrefix("api/v1");
-  app.enableCors();
+  app.enableCors({
+    origin: ['https://fenfurnacional.cl', 'https://fenfurnacional.com'], // Dominios permitidos
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Métodos HTTP permitidos
+    allowedHeaders: 'Content-Type,Authorization', // Cabeceras permitidas
+    credentials: true, // Permite que se envíen cookies de sesión
+  });
   
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
 
