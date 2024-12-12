@@ -565,10 +565,12 @@ async importFromExcel(filePath: string) {
         ? convertirFechaExcel(row['fecha_nacimiento'])
         : row['fecha_nacimiento'];
 
-      const fechaInscripcionValida = 
-        typeof row['fecha_inscripcion'] === 'number'
-          ? convertirFechaExcel(row['fecha_inscripcion'])
-          : row['fecha_inscripcion'] || '2023-08-20'; // Fecha por defecto si no hay inscripción
+        const fechaDefault = '2023-09-20';
+        const convertirCampoFecha = (valor: any) => 
+          typeof valor === 'number' 
+            ? convertirFechaExcel(valor) 
+            : valor || fechaDefault;
+       // Fecha por defecto si no hay inscripción
 
       // Si alguna fecha es inválida, asignar fecha predeterminada
       if (isNaN(fechaNacimientoValida.getTime())) {
@@ -579,7 +581,7 @@ async importFromExcel(filePath: string) {
       let fechaInscripcion: Date;
       try {
         // Si la fecha de inscripción es inválida, asignar la fecha predeterminada
-        fechaInscripcion = fechaInscripcionValida instanceof Date ? fechaInscripcionValida : new Date(2023, 8, 20);  // 20 de septiembre de 2023
+        fechaInscripcion = convertirCampoFecha(row['fecha_inscripcion']) // 20 de septiembre de 2023
       } catch (error) {
         console.error(`Fila ${index + 1}: Error procesando fecha de inscripción - ${error.message}`);
         continue;
