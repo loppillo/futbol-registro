@@ -173,8 +173,8 @@ async getPlayers(
   @Query('page') page: number = 1,
   @Query('limit') limit: number = 10
 ): Promise<any> {
-  const queryBuilder = this.jugadoresRepository.createQueryBuilder('player')
-    .leftJoinAndSelect('player.club', 'club')
+  const queryBuilder = this.jugadoresRepository.createQueryBuilder('jugador')
+    .leftJoinAndSelect('jugador.club', 'club')
     .leftJoinAndSelect('club.asociacion', 'asociacion')
     .leftJoinAndSelect('asociacion.region', 'region')
     .skip((page - 1) * limit)
