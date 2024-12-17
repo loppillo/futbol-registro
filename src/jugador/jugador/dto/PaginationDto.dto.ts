@@ -1,4 +1,4 @@
-import { IsOptional, IsInt, IsPositive, Min } from "class-validator";
+import { IsOptional, IsInt, IsPositive, Min, IsString } from "class-validator";
 
 export class PaginationDto {
 
@@ -8,4 +8,8 @@ export class PaginationDto {
 
    @IsOptional()    
     limit?: number = 10; // Default to 10 items per page
+
+    @IsString() // ✅ Definimos club como una cadena de texto
+    @IsOptional()
+    club: string;
   }
