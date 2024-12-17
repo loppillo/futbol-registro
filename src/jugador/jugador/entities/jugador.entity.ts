@@ -42,4 +42,7 @@ export class Jugador {
 
   @ManyToOne(() => Club, (club) => club.jugadores)
   club: Club;
+
+  @Column({ nullable: true }) // ⚠️ ¡Agrega clubId explícitamente!
+  clubId: number;
 }

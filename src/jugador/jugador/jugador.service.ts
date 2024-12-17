@@ -399,17 +399,15 @@ async markDuplicates() {
 
 async updatePlay(
   id: number,
-  updatePlayerDto: Partial<UpdateJugadorDto>, // Asegura que sea parcial
+  updatePlayerDto: Partial<UpdateJugadorDto>, 
   foto?: string
 ): Promise<Jugador> {
-  // Buscar jugador por ID
   const playerToUpdate = await this.jugadoresRepository.findOne({ where: { id }, relations: ['club'] });
   if (!playerToUpdate) {
     throw new NotFoundException('Jugador no encontrado');
   }
 
-  // Filtra las propiedades permitidas manualmente
-  const allowedFields = ['nombre', 'paterno', 'materno', 'rut', 'fecha_nacimiento', 'fecha_inscripcion', 'sancionado','recalificado', 'clubId'];
+  const allowedFields = ['nombre', 'paterno', 'materno', 'rut', 'fecha_nacimiento', 'fecha_inscripcion', 'sancionado', 'recalificado', 'clubId'];
   const filteredDto = Object.keys(updatePlayerDto)
     .filter((key) => allowedFields.includes(key))
     .reduce((obj, key) => {
@@ -417,38 +415,32 @@ async updatePlay(
       return obj;
     }, {});
 
-  // Formatear las fechas si existen
-  if (filteredDto['fecha_nacimiento']) {
-    filteredDto['fecha_nacimiento'] = format(new Date(filteredDto['fecha_nacimiento']), 'yyyy-MM-dd');
-  }
-  if (filteredDto['fecha_inscripcion']) {
-    filteredDto['fecha_inscripcion'] = format(new Date(filteredDto['fecha_inscripcion']), 'yyyy-MM-dd');
-  }
-
-  // Si se proporciona un nuevo clubId, busca el club y asigna
   if (filteredDto['clubId']) {
     const club = await this.clubRepo.findOne({ where: { id: filteredDto['clubId'] } });
     if (!club) {
       throw new BadRequestException('Club no encontrado');
     }
-    playerToUpdate.club = club;  // Asigna el nuevo club al jugador
+    playerToUpdate.club = club;
+    playerToUpdate.clubId = filteredDto['clubId'];
   }
 
+  if (foto) {
+    playerToUpdate.foto = foto;
+  }
 
-  playerToUpdate.foto = foto;
-  console.log(foto)
-  // Asignar propiedades filtradas al jugador
-  Object.assign(playerToUpdate, filteredDto);
+  Object.entries(filteredDto).forEach(([key, value]) => {
+    playerToUpdate[key] = value;
+  });
 
-  // Actualizar imagen si se proporciona
-
-   
-
-  
-
-  // Guardar jugador actualizado
-  return this.jugadoresRepository.save(playerToUpdate);
+  try {
+    const updatedPlayer = await this.jugadoresRepository.save(playerToUpdate);
+    return updatedPlayer;
+  } catch (error) {
+    console.error('Error al actualizar jugador', error);
+    throw new BadRequestException('No se pudo actualizar el jugador');
+  }
 }
+
 
 
 
