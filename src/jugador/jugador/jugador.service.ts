@@ -230,7 +230,7 @@ async markDuplicates() {
       await this.jugadoresRepository
         .createQueryBuilder()
         .update(Jugador)
-        .set({ duplicado: 1 })
+        .set({ duplicado: true })
         .where("rut IN (:...duplicateRuts)", { duplicateRuts })
         .execute();
     }
@@ -253,9 +253,9 @@ async markDuplicates() {
   
     // Si el jugador tiene una foto, construir la URL completa
     if (jugador && jugador.foto) {
-      jugador.foto = `${process.env.BASE_URL}/${jugador.foto}`; // Construir la URL completa
+      jugador.foto = `${'http://localhost:4000'}/${jugador.foto}`; // Construir la URL completa
     }
-  
+    console.log(jugador.foto)
     return jugador;
   }
   
@@ -400,7 +400,7 @@ async markDuplicates() {
 async updatePlay(
   id: number,
   updatePlayerDto: Partial<UpdateJugadorDto>, // Asegura que sea parcial
-  imagePath?: string
+  foto?: string
 ): Promise<Jugador> {
   // Buscar jugador por ID
   const playerToUpdate = await this.jugadoresRepository.findOne({ where: { id }, relations: ['club'] });
@@ -434,13 +434,17 @@ async updatePlay(
     playerToUpdate.club = club;  // Asigna el nuevo club al jugador
   }
 
+
+  playerToUpdate.foto = foto;
+  console.log(foto)
   // Asignar propiedades filtradas al jugador
   Object.assign(playerToUpdate, filteredDto);
 
   // Actualizar imagen si se proporciona
-  if (imagePath) {
-    playerToUpdate.foto = imagePath;
-  }
+
+   
+
+  
 
   // Guardar jugador actualizado
   return this.jugadoresRepository.save(playerToUpdate);
@@ -488,7 +492,7 @@ async getAllPlayers(paginationDto: PaginationDto){
 
 async obtenerDuplicados(page: number = 1, limit: number = 10) {
   const [jugadores, total] = await this.jugadoresRepository.findAndCount({
-    where: { duplicado: 1 },
+    where: { duplicado: true },
     relations: [
       'club', // Relación con el club
       'club.asociacion', // Relación con la asociación
@@ -506,20 +510,27 @@ async obtenerDuplicados(page: number = 1, limit: number = 10) {
     rut: jugador.rut,
     fecha_nacimiento: jugador.fecha_nacimiento,
     fecha_inscripcion: jugador.fecha_inscripcion,
-    club: {
-      id: jugador.club.id,
-      name: jugador.club.name,
-      asociacion: {
-        id: jugador.club.asociacion.id,
-        name: jugador.club.asociacion.name,
-        region: {
-          id: jugador.club.asociacion.region.id,
-          name: jugador.club.asociacion.region.name,
-        },
-      },
-    },
+    club: jugador.club
+      ? {
+          id: jugador.club.id,
+          name: jugador.club.name,
+          asociacion: jugador.club.asociacion
+            ? {
+                id: jugador.club.asociacion.id,
+                name: jugador.club.asociacion.name,
+                region: jugador.club.asociacion.region
+                  ? {
+                      id: jugador.club.asociacion.region.id,
+                      name: jugador.club.asociacion.region.name,
+                    }
+                  : null,
+              }
+            : null,
+        }
+      : null,
     sancionado: jugador.sancionado,
     duplicado: jugador.duplicado,
+    recalificado:jugador.recalificado
   }));
 
   return {
@@ -529,6 +540,7 @@ async obtenerDuplicados(page: number = 1, limit: number = 10) {
     totalPages: Math.ceil(total / limit),
   };
 }
+
 
 async importFromExcel(filePath: string) {
   const workbook = XLSX.readFile(filePath);
@@ -540,16 +552,20 @@ async importFromExcel(filePath: string) {
     return { message: 'No hay registros para importar.' };
   }
 
-  // Función para convertir fechas en formato numérico de Excel
   const convertirFechaExcel = (excelDate: number): Date => {
-    const epoch = new Date(1900, 0, 1); // El 1 de enero de 1900 es la fecha base de Excel
-    epoch.setDate(epoch.getDate() + excelDate - 2); // Excel empieza el conteo desde 1, pero tiene un desfase con el año 1900
+    const epoch = new Date(1900, 0, 1);
+    epoch.setDate(epoch.getDate() + excelDate - 2);
     return epoch;
   };
 
+  const fechaDefault = '2023-09-20';
+  const convertirCampoFecha = (valor: any) => 
+    typeof valor === 'number' 
+      ? convertirFechaExcel(valor) 
+      : valor || fechaDefault;
+
   for (const [index, row] of data.entries()) {
     try {
-      // Validación de datos esenciales
       const requiredFields = ['paterno', 'materno', 'nombre', 'rut', 'club_deportivo', 'fecha_nacimiento', 'fecha_inscripcion'];
       const missingFields = requiredFields.filter(field => !row[field]);
 
@@ -560,34 +576,23 @@ async importFromExcel(filePath: string) {
 
       console.log(`Procesando fila ${index + 1}: ${JSON.stringify(row)}`);
 
-      // Convertir fechas si están en formato Excel numérico
       const fechaNacimientoValida = typeof row['fecha_nacimiento'] === 'number'
         ? convertirFechaExcel(row['fecha_nacimiento'])
         : row['fecha_nacimiento'];
 
-        const fechaDefault = '2023-09-20';
-        const convertirCampoFecha = (valor: any) => 
-          typeof valor === 'number' 
-            ? convertirFechaExcel(valor) 
-            : valor || fechaDefault;
-       // Fecha por defecto si no hay inscripción
-
-      // Si alguna fecha es inválida, asignar fecha predeterminada
-      if (isNaN(fechaNacimientoValida.getTime())) {
+      if (isNaN(new Date(fechaNacimientoValida).getTime())) {
         console.warn(`Fila ${index + 1}: Fecha de nacimiento inválida. Fecha de nacimiento: ${row['fecha_nacimiento']}`);
         continue;
       }
 
       let fechaInscripcion: Date;
       try {
-        // Si la fecha de inscripción es inválida, asignar la fecha predeterminada
-        fechaInscripcion = convertirCampoFecha(row['fecha_inscripcion']) // 20 de septiembre de 2023
+        fechaInscripcion = convertirCampoFecha(row['fecha_inscripcion']);
       } catch (error) {
         console.error(`Fila ${index + 1}: Error procesando fecha de inscripción - ${error.message}`);
         continue;
       }
 
-      // Buscar región, asociación y club en paralelo
       const [region, asociacion, club] = await Promise.all([
         this.regionRepo.findOne({ where: { name: row['region'] } }),
         this.associationRepo.findOne({ where: { name: row['asociacion'] } }),
@@ -596,20 +601,33 @@ async importFromExcel(filePath: string) {
 
       if (!region) {
         console.warn(`Fila ${index + 1}: Región no encontrada: ${row['region']}`);
-        continue;
       }
 
       if (!asociacion) {
         console.warn(`Fila ${index + 1}: Asociación no encontrada: ${row['asociacion']}`);
-        continue;
       }
 
       if (!club) {
         console.warn(`Fila ${index + 1}: Club no encontrado: ${row['club_deportivo']}`);
+      }
+
+      const jugadorDuplicado = await this.jugadoresRepository.findOne({ 
+        where: { 
+          rut: row['rut'], 
+          nombre: row['nombre'], 
+          paterno: row['paterno'], 
+          materno: row['materno'], 
+          club: club ? { id: club.id } : null 
+        } 
+      });
+
+      if (jugadorDuplicado) {
+        console.warn(`Fila ${index + 1}: Jugador duplicado encontrado: ${row['nombre']} (${row['rut']})`);
+        jugadorDuplicado.duplicado = true;
+        await this.jugadoresRepository.save(jugadorDuplicado);
         continue;
       }
 
-      // Crear jugador
       const player = this.jugadoresRepository.create({
         paterno: row['paterno'],
         materno: row['materno'],
@@ -618,13 +636,12 @@ async importFromExcel(filePath: string) {
         fecha_nacimiento: fechaNacimientoValida,
         fecha_inscripcion: fechaInscripcion,
         foto: null,
-        recalificado:false,
+        recalificado: false,
         sancionado: false,
-        duplicado: 0,
-        club,
+        duplicado: false,
+        club: club || null,
       });
 
-      // Guardar jugador
       await this.jugadoresRepository.save(player);
       console.log(`Jugador guardado exitosamente: ${player.nombre}`);
     } catch (error) {
@@ -634,6 +651,8 @@ async importFromExcel(filePath: string) {
 
   return { message: 'Importación completada exitosamente' };
 }
+
+
 
 
 
@@ -745,7 +764,7 @@ async deletePlay(id: number): Promise<Jugador> {
   }
 
   // Marcar el jugador como duplicado
-  playerToMark.duplicado = 1; // o true si el tipo es booleano
+  playerToMark.duplicado = true; // o true si el tipo es booleano
 
   return this.jugadoresRepository.save(playerToMark);
 }
@@ -793,6 +812,19 @@ getPlayerPhoto(id: number): void {
 
 
 }
+
+async volverPlay(id: number): Promise<Jugador> {
+  const playerToMark = await this.jugadoresRepository.findOne({ where: { id } });
+  if (!playerToMark) {
+    throw new NotFoundException('Jugador no encontrado');
+  }
+
+  // Marcar el jugador como duplicado
+  playerToMark.duplicado = false; // o true si el tipo es booleano
+
+  return this.jugadoresRepository.save(playerToMark);
+}
+
 
 
 }

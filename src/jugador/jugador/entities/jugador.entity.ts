@@ -37,8 +37,8 @@ export class Jugador {
   recalificado: boolean;
 
   // Campo para marcar duplicados
-  @Column({ type: 'tinyint', default: 0 })
-  duplicado: number;
+  @Column({ default: false })
+  duplicado: boolean;
 
   @ManyToOne(() => Club, (club) => club.jugadores)
   club: Club;

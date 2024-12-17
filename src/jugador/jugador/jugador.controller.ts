@@ -75,7 +75,7 @@ export class JugadoresController {
   @Post()
   @UseInterceptors(FileInterceptor('foto', {
     storage: diskStorage({
-      destination: './uploads', // Carpeta donde se guardarán las fotos
+      destination: './uploads/players', // Carpeta donde se guardarán las fotos
       filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
         const extension = extname(file.originalname);
@@ -168,8 +168,28 @@ export class JugadoresController {
 
 @UseGuards(AuthGuard)
 @Get('obtener')
-async getPlayers(@Query() paginationDto: PaginationDto): Promise<{ players: JugadorResponseDto[]; total: number }> {
-  return this.jugadoresService.findAll(paginationDto);
+async getPlayers(
+  @Query('club') clubName: string,
+  @Query('page') page: number = 1,
+  @Query('limit') limit: number = 10
+): Promise<any> {
+  const queryBuilder = this.jugadoresRepository.createQueryBuilder('player')
+    .leftJoinAndSelect('player.club', 'club')
+    .leftJoinAndSelect('club.asociacion', 'asociacion')
+    .leftJoinAndSelect('asociacion.region', 'region')
+    .skip((page - 1) * limit)
+    .take(limit);
+
+  if (clubName) {
+    queryBuilder.andWhere('club.name LIKE :name', { name: `%${clubName}%` });
+  }
+
+  const [players, total] = await queryBuilder.getManyAndCount();
+
+  return {
+    players,
+    total,
+  };
 }
 
 
@@ -204,15 +224,32 @@ async importExcel(@UploadedFile() file: Express.Multer.File) {
     return await this.jugadoresService.obtenerJugadorPorId(id);
   }
 
+ 
+
+
   @Put(':id')
-  update(@Param('id') id: number, @Body() updateJugadorDto: UpdateJugadorDto) {
-    return this.jugadoresService.updatePlay(+id, updateJugadorDto);
+  @UseInterceptors(FileInterceptor('foto', { dest: './uploads/players' }))
+  async updateJugador(
+    @Param('id') id: number,
+    @Body() updateJugadorDto: UpdateJugadorDto,
+    @UploadedFile() foto: Express.Multer.File,
+  ) {
+    const fotoPath = foto ? `uploads/players/${foto.filename}` : undefined; // Ruta de la foto o undefined
+    console.log('Foto recibida en controlador:', fotoPath);
+    return this.jugadoresService.updatePlay(id, updateJugadorDto, fotoPath);
   }
+
 
   @Delete(':id')
   remove(@Param('id') id: number) {
     return this.jugadoresService.deletePlay(+id);
   }
+
+  @Delete('/volver/:id')
+  volver(@Param('id') id: number) {
+    return this.jugadoresService.volverPlay(+id);
+  }
+
 
   @Post('upload')
 @UseInterceptors(FileInterceptor('file', {
