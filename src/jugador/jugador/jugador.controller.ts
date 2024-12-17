@@ -168,28 +168,8 @@ export class JugadoresController {
 
 @UseGuards(AuthGuard)
 @Get('obtener')
-async getPlayers(
-  @Query('club') clubName: string,
-  @Query('page') page: number = 1,
-  @Query('limit') limit: number = 10
-): Promise<any> {
-  const queryBuilder = this.jugadoresRepository.createQueryBuilder('player')
-    .leftJoinAndSelect('player.club', 'club')
-    .leftJoinAndSelect('club.asociacion', 'asociacion')
-    .leftJoinAndSelect('asociacion.region', 'region')
-    .skip((page - 1) * limit)
-    .take(limit);
-
-  if (clubName) {
-    queryBuilder.andWhere('club.name LIKE :name', { name: `%${clubName}%` });
-  }
-
-  const [players, total] = await queryBuilder.getManyAndCount();
-
-  return {
-    players,
-    total,
-  };
+async getPlayers(@Query() paginationDto: PaginationDto): Promise<{ players: JugadorResponseDto[]; total: number }> {
+  return this.jugadoresService.findAll(paginationDto);
 }
 
 
@@ -228,7 +208,7 @@ async importExcel(@UploadedFile() file: Express.Multer.File) {
 
 
   @Put(':id')
-  @UseInterceptors(FileInterceptor('foto', { dest: './uploads/players' }))
+  @UseInterceptors(FileInterceptor('foto', { dest: './op/uploads/players' }))
   async updateJugador(
     @Param('id') id: number,
     @Body() updateJugadorDto: UpdateJugadorDto,
