@@ -72,32 +72,36 @@ export class JugadoresController {
   constructor(private readonly jugadoresService: JugadoresService,@InjectRepository(Jugador)
   private jugadoresRepository: Repository<Jugador>,) {}
 
-  @Post()
-  @UseInterceptors(FileInterceptor('foto', {
-    storage: diskStorage({
-      destination: './uploads/players', // Carpeta donde se guardarán las fotos
-      filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        const extension = extname(file.originalname);
-        const filename = `${uniqueSuffix}${extension}`;
-        cb(null, filename);
+  @Post('create')
+  @UseInterceptors(
+    FileInterceptor('foto', {
+      storage: diskStorage({
+        destination: './uploads/players',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const filename = `player-${uniqueSuffix}${extname(file.originalname)}`;
+          callback(null, filename);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 }, 
+      fileFilter: (req, file, callback) => {
+        const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+          return callback(new BadRequestException('Only .png, .jpg and .jpeg formats are allowed'), false);
+        }
+        callback(null, true);
       },
-    }),
-    limits: { fileSize: 5 * 1024 * 1024 }, // Límite de tamaño 5MB
-    fileFilter: (req, file, cb) => {
-      if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-        return cb(new Error('Solo se permiten archivos de imagen (jpg, jpeg, png).'), false);
-      }
-      cb(null, true);
-    },
-  }))
-  async create(
-    @Body() createJugadorDto: CreateJugadorDto,
+    })
+  )
+  async Player(
     @UploadedFile() file: Express.Multer.File,
+    @Body() playerData: CreateJugadorDto
   ) {
-    const filePath = `uploads/players${file.filename}`; // Ruta relativa de la foto
-    createJugadorDto.foto = filePath; // Asignar la ruta de la foto al DTO
-    return this.jugadoresService.create(createJugadorDto);
+    if (!file) throw new BadRequestException('Se requiere una imagen');
+    const imagePath = `uploads/players/${file.filename}`; 
+    playerData.foto = imagePath; 
+    const player = await this.jugadoresService.createPlayer(playerData);
+    return { message: 'Jugador creado con éxito', player };
   }
 
   
@@ -114,7 +118,7 @@ export class JugadoresController {
 
 
 
-  @Post('create')
+  @Post('creates')
   @UseInterceptors(
     FileInterceptor('foto', {
       storage: diskStorage({
@@ -396,39 +400,42 @@ async buscarPorClub(@Param('club_deportivo') club_deportivo: string, @Req() req)
 
 
   @Get('photo/:id')
-  getPhotoByJugadorId(@Param('id') id: number, @Res() res: Response) {
-    const directoryPath = join(process.cwd(), './uploads/players');
-    console.log('Directory Path:', directoryPath);
-    console.log('Player ID:', id);
-    
-    // Verificar si el directorio existe
+async getPhotoByJugadorId(@Param('id') id: number, @Res() res: Response) {
+  try {
+    const directoryPath = join(process.cwd(), './uploads/players'); 
+    console.log('Path de la carpeta:', directoryPath);
+    console.log('ID del jugador:', id);
+
+    // Verifica si el directorio existe
     if (!fs.existsSync(directoryPath)) {
       console.error('El directorio no existe:', directoryPath);
       return res.status(404).json({ message: 'Directorio no existe' });
     }
-  
-    // Obtener todos los archivos de la carpeta
+
+    // Obtiene todos los archivos de la carpeta
     const files = fs.readdirSync(directoryPath);
 
-  
-    // Buscar un archivo que contenga el ID en su nombre
-    const playerImage = files.find((file) => /player-\d+-\d+/.test(file)); // Busca el ID en cualquier parte del nombre del archivo
+    // Busca el archivo que contenga el ID
+    const playerImage = files.find((file) => file.includes(`player-${id}-`)); // ✅ Ahora busca el ID
 
-  
     if (playerImage) {
-      console.log('Imagen del jugador encontrada:', playerImage);
+      console.log('Imagen encontrada:', playerImage);
       const filePath = join(directoryPath, playerImage);
       res.sendFile(filePath, (err) => {
         if (err) {
-          console.error('Error al enviar el archivo:', err);
-          res.status(404).json({ message: 'No se pudo enviar la imagen' });
+          console.error('Error al enviar la imagen:', err);
+          res.status(500).json({ message: 'Error al enviar la imagen' });
         }
       });
     } else {
       console.error('Imagen no encontrada para el jugador con ID:', id);
-      return res.status(404).json({ message: 'Imagen no encontrada para el jugador' });
+      return res.status(404).json({ message: 'Imagen no encontrada' });
     }
+  } catch (error) {
+    console.error('Error general:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
   }
+}
   
   
 
