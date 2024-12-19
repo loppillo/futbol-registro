@@ -209,15 +209,54 @@ async importExcel(@UploadedFile() file: Express.Multer.File) {
 
 
   @Put(':id')
-  @UseInterceptors(FileInterceptor('foto', { dest: './uploads/players' }))
-  async updateJugador(
+  @UseInterceptors(
+    FileInterceptor('foto', {
+      storage: diskStorage({
+        destination: './uploads/players',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          const filename = `player-${uniqueSuffix}${ext}`;
+          callback(null, filename);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 }, // Límite de 5MB
+      fileFilter: (req, file, callback) => {
+        const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+          return callback(new BadRequestException('Solo se permiten archivos .png, .jpg y .jpeg'), false);
+        }
+        callback(null, true);
+      },
+    })
+  )
+  async upPlayer(
     @Param('id') id: number,
-    @Body() updateJugadorDto: UpdateJugadorDto,
-    @UploadedFile() foto: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() updateJugadorDto: Partial<UpdateJugadorDto>
   ) {
-    const fotoPath = foto ? `./uploads/players/${foto.filename}` : undefined; // Ruta de la foto o undefined
-    console.log('Foto recibida en controlador:', fotoPath);
-    return this.jugadoresService.updatePlay(id, updateJugadorDto, fotoPath);
+    // Verificar si hay un archivo
+    let imageUrl = updateJugadorDto.foto; // Usar la URL existente por defecto
+    if (file) {
+      const filePath = `uploads/players/${file.filename}`;
+      imageUrl = `https://fenfurnacional.com/uploads/players/${file.filename}`;
+      updateJugadorDto.foto = filePath; // Guarda la ruta de la imagen en la base de datos
+    }
+  
+    // Llama al servicio para actualizar el jugador
+    const updatedPlayer = await this.jugadoresService.updatePlay(
+      id,
+      updateJugadorDto
+    );
+  
+    // Retorna la respuesta con la URL pública
+    return {
+      message: 'Jugador actualizado con éxito',
+      player: {
+        ...updatedPlayer,
+        foto: imageUrl // Devolver la URL pública
+      },
+    };
   }
 
 
