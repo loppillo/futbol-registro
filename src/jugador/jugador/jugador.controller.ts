@@ -208,7 +208,7 @@ async importExcel(@UploadedFile() file: Express.Multer.File) {
 
 
   @Put(':id')
-  @UseInterceptors(FileInterceptor('foto', { dest: './op/uploads/players' }))
+  @UseInterceptors(FileInterceptor('foto', { dest: './uploads/players' }))
   async updateJugador(
     @Param('id') id: number,
     @Body() updateJugadorDto: UpdateJugadorDto,
