@@ -95,7 +95,7 @@ export class JugadoresController {
     @Body() createJugadorDto: CreateJugadorDto,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    const filePath = `uploads/${file.filename}`; // Ruta relativa de la foto
+    const filePath = `uploads/players${file.filename}`; // Ruta relativa de la foto
     createJugadorDto.foto = filePath; // Asignar la ruta de la foto al DTO
     return this.jugadoresService.create(createJugadorDto);
   }
@@ -147,7 +147,7 @@ export class JugadoresController {
     }
 
     // Obtener la ruta de la imagen
-    const imagePath = `uploads/players/${file.filename}`;
+    const imagePath = `https://fenfurnacional.com/uploads/players/${file.filename}`;
 
     // Crear el jugador con los datos proporcionados
     const player = await this.jugadoresService.createPlayer(
@@ -159,6 +159,7 @@ export class JugadoresController {
     return {
       message: 'Jugador creado con éxito',
       player,
+      imageUrl: imagePath
     };
   }
 
@@ -214,7 +215,7 @@ async importExcel(@UploadedFile() file: Express.Multer.File) {
     @Body() updateJugadorDto: UpdateJugadorDto,
     @UploadedFile() foto: Express.Multer.File,
   ) {
-    const fotoPath = foto ? `uploads/players/${foto.filename}` : undefined; // Ruta de la foto o undefined
+    const fotoPath = foto ? `https://fenfurnacional.com/uploads/players/${foto.filename}` : undefined; // Ruta de la foto o undefined
     console.log('Foto recibida en controlador:', fotoPath);
     return this.jugadoresService.updatePlay(id, updateJugadorDto, fotoPath);
   }
