@@ -253,7 +253,7 @@ async markDuplicates() {
   
     // Si el jugador tiene una foto, construir la URL completa
     if (jugador && jugador.foto) {
-      jugador.foto = `${'http://localhost:4000'}/${jugador.foto}`; // Construir la URL completa
+      jugador.foto = `${'https://fenfurnacional.com'}/${jugador.foto}`; // Construir la URL completa
     }
     console.log(jugador.foto)
     return jugador;
