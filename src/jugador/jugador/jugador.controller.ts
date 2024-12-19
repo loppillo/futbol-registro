@@ -215,7 +215,7 @@ async importExcel(@UploadedFile() file: Express.Multer.File) {
     @Body() updateJugadorDto: UpdateJugadorDto,
     @UploadedFile() foto: Express.Multer.File,
   ) {
-    const fotoPath = foto ? `https://fenfurnacional.com/uploads/players/${foto.filename}` : undefined; // Ruta de la foto o undefined
+    const fotoPath = foto ? `./uploads/players/${foto.filename}` : undefined; // Ruta de la foto o undefined
     console.log('Foto recibida en controlador:', fotoPath);
     return this.jugadoresService.updatePlay(id, updateJugadorDto, fotoPath);
   }
