@@ -16,6 +16,7 @@ import { Club } from './club/club/entities/club.entity';
 import { Asociacion } from './asociacion/asociacion/entities/asociacion.entity';
 import { Region } from './region/region/entities/region.entity';
 import { AuthModule } from './auth/auth.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -30,6 +31,10 @@ import { AuthModule } from './auth/auth.module';
       synchronize: true, 
       connectTimeout: 10000,
       multipleStatements: true,   // Permitir múltiples declaraciones en una consulta
+    }),
+    ConfigModule.forRoot({
+      isGlobal: true, // Hace que las variables estén disponibles globalmente
+     envFilePath: './.env', // Selecciona el archivo .env basado en el entorno
     }),
     JugadorModule,
     UsuarioModule,

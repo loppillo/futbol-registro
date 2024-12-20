@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import * as path from 'path';
 import * as fs from 'fs';
 import { join } from 'path';
+import { ConfigService } from '@nestjs/config';
 export interface ClubData {
   club: string;
   association?: string;
@@ -34,6 +35,7 @@ export class JugadoresService {
     @InjectRepository(Asociacion) private readonly associationRepo: Repository<Asociacion>,
     @InjectRepository(Club) private readonly clubRepo: Repository<Club>,
     @InjectRepository(Jugador) private readonly jugadoresRepository: Repository<Jugador>,
+    private readonly configService: ConfigService
   ) {}
 
   
@@ -245,6 +247,8 @@ async markDuplicates() {
 
    // Buscar jugador por RUT
    async buscarPorRut(rut: string): Promise<Jugador | null> {
+    const baseUrl = this.configService.get<string>('BASE_URL');
+    console.log(baseUrl)
     // Buscar jugador con relaciones necesarias
     const jugador = await this.jugadoresRepository.findOne({
       where: { rut },
@@ -253,7 +257,7 @@ async markDuplicates() {
   
     // Si el jugador tiene una foto, construir la URL completa
     if (jugador && jugador.foto) {
-      jugador.foto = `${'https://fenfurnacional.com'}/${jugador.foto}`; // Construir la URL completa
+      jugador.foto = `${baseUrl}/${jugador.foto}`; // Construir la URL completa
     }
     console.log(jugador.foto)
     return jugador;
