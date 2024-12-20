@@ -247,7 +247,7 @@ async markDuplicates() {
 
    // Buscar jugador por RUT
    async buscarPorRut(rut: string): Promise<Jugador | null> {
-    const baseUrl = this.configService.get<string>('BASE_URL');
+    const baseUrl = 'https://fenfurnacional.com'; 
     console.log(baseUrl)
     // Buscar jugador con relaciones necesarias
     const jugador = await this.jugadoresRepository.findOne({
