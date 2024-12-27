@@ -13,7 +13,7 @@ async function bootstrap() {
   
   app.setGlobalPrefix("api/v1");
   app.enableCors({
-    origin: ['https://fenfurnacional.cl', 'https://fenfurnacional.com'], // Dominios permitidos
+    origin: ['https://fenfurnacional.cl', 'https://fenfurnacional.com','https://wwww.fenfurnacional.com','https://www.fenfurnacional.cl'], // Dominios permitidos
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Métodos HTTP permitidos
     allowedHeaders: 'Content-Type,Authorization', // Cabeceras permitidas
     credentials: true, // Permite que se envíen cookies de sesión
