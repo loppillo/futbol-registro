@@ -96,49 +96,62 @@ export class JugadoresService {
   async findAll(
     paginationDto: PaginationDto,
   ): Promise<{ players: JugadorResponseDto[]; total: number }> {
-    const { page, limit } = paginationDto;
+    const { page = 1, limit = 10, rut, clubName } = paginationDto;
   
-    const [players, total] = await this.jugadoresRepository.createQueryBuilder('jugador')
-  .leftJoinAndSelect('jugador.club', 'club')
-  .leftJoinAndSelect('club.asociacion', 'asociacion')
-  .leftJoinAndSelect('asociacion.region', 'region')
-  .where('jugador.duplicado = :duplicado', { duplicado: false })
-  .skip((page - 1) * limit)
-  .take(limit)
-  .getManyAndCount();
-
-   const playersDto = players.map(player => ({
-  id: player.id,
-  paterno: player.paterno,
-  materno: player.materno,
-  nombre: player.nombre,
-  rut: player.rut,
-  fecha_nacimiento: player.fecha_nacimiento,
-  fecha_inscripcion: player.fecha_inscripcion,
-  club: player.club ? {
-    id: player.club.id,
-    name: player.club.name,
-    asociacion: player.club.asociacion ? {
-      id: player.club.asociacion.id,
-      name: player.club.asociacion.name,
-      region: player.club.asociacion.region ? {
-        id: player.club.asociacion.region.id,
-        name: player.club.asociacion.region.name,
-      } : null, // Asignar null si la región es null
-    } : null, // Asignar null si la asociación es null
-  } : null, // Asignar null si el club es null
-  sancionado: player.sancionado,
-  recalificado:player.recalificado,
-  duplicado: Boolean(player.duplicado), // Conversión de number a boolean
-}));
-
+    const query = this.jugadoresRepository.createQueryBuilder('jugador')
+      .leftJoinAndSelect('jugador.club', 'club')
+      .leftJoinAndSelect('club.asociacion', 'asociacion')
+      .leftJoinAndSelect('asociacion.region', 'region')
+      .where('jugador.duplicado = :duplicado', { duplicado: false });
   
-    // Retornar jugadores y el total
+    // Filtrar por RUT si está presente
+    if (rut) {
+      query.andWhere('jugador.rut LIKE :rut', { rut: `%${rut}%` });
+    }
+  
+    // Filtrar por club si está presente
+    if (clubName) {
+      query.andWhere('club.name LIKE :club', { club: `%${clubName}%` });
+    }
+  
+    // Aplicar paginación
+    const [players, total] = await query
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+  
+    // Transformar jugadores a DTO
+    const playersDto = players.map(player => ({
+      id: player.id,
+      paterno: player.paterno,
+      materno: player.materno,
+      nombre: player.nombre,
+      rut: player.rut,
+      fecha_nacimiento: player.fecha_nacimiento,
+      fecha_inscripcion: player.fecha_inscripcion,
+      club: player.club ? {
+        id: player.club.id,
+        name: player.club.name,
+        asociacion: player.club.asociacion ? {
+          id: player.club.asociacion.id,
+          name: player.club.asociacion.name,
+          region: player.club.asociacion.region ? {
+            id: player.club.asociacion.region.id,
+            name: player.club.asociacion.region.name,
+          } : null,
+        } : null,
+      } : null,
+      sancionado: player.sancionado,
+      recalificado: player.recalificado,
+      duplicado: Boolean(player.duplicado),
+    }));
+  
     return {
       players: playersDto,
       total,
     };
   }
+  
   
   
   

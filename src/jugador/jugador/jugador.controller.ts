@@ -171,7 +171,7 @@ export class JugadoresController {
 
 
 
-@UseGuards(AuthGuard)
+
 @Get('obtener')
 async getPlayers(@Query() paginationDto: PaginationDto): Promise<{ players: JugadorResponseDto[]; total: number }> {
   return this.jugadoresService.findAll(paginationDto);

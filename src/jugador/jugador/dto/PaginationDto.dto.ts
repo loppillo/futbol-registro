@@ -9,7 +9,12 @@ export class PaginationDto {
    @IsOptional()    
     limit?: number = 10; // Default to 10 items per page
 
+    @IsOptional()
+    @IsString()
+    rut?: string;
+
+
     @IsString() // ✅ Definimos club como una cadena de texto
     @IsOptional()
-    club: string;
+    clubName: string;
   }
