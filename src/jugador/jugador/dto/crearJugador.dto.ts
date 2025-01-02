@@ -17,11 +17,13 @@ export class CrearJugadorDto {
   @IsNotEmpty()
   materno: string;
 
-  @IsDateString()
-  fecha_nacimiento: string;
+  @IsOptional()
+  @IsDateString({ strict: true })
+  fecha_nacimiento?: Date;
 
-  @IsDateString()
-  fecha_inscripcion: string;
+  @IsOptional()
+  @IsDateString({ strict: true })
+  fecha_inscripcion?: Date;
 
   @IsOptional()
   @IsString()

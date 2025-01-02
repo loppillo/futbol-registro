@@ -244,7 +244,8 @@ async importExcel(@UploadedFile() file: Express.Multer.File) {
     if (file) {
       const filePath = `uploads/players/${file.filename}`;
       imageUrl = `https://fenfurnacional.com/uploads/players/${file.filename}`;
-      updateJugadorDto.foto = filePath; // Guarda la ruta de la imagen en la base de datos
+      updateJugadorDto.foto = filePath;
+      console.log(updateJugadorDto.foto) // Guarda la ruta de la imagen en la base de datos
     }
   
     // Llama al servicio para actualizar el jugador
@@ -466,7 +467,7 @@ async getPhotoByJugadorId(@Param('id') id: number, @Res() res: Response) {
     }
 
     const updatedPlayer = await this.jugadoresService.updatePlay(id, updatePlayerDto);
-
+    
     return {
       message: 'Jugador updated successfully',
       player: {
