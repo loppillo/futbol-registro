@@ -26,12 +26,13 @@ import { ConfigModule } from '@nestjs/config';
       port: 3306,
       username: 'fenfurna_lopo',     // Cambiar según tu configuración
       password: 'b&jTYe?&t^S!', // Cambiar según tu configuración
-      database: 'fenfurna_db',
+      database: 'fenfurna_futbol_db',
       entities: [Jugador,User,Club, Asociacion, Region],  // Todas las entidades que usaremos
       synchronize: true, 
       connectTimeout: 10000,
       multipleStatements: true,   // Permitir múltiples declaraciones en una consulta
     }),
+
     ConfigModule.forRoot({
       isGlobal: true, // Hace que las variables estén disponibles globalmente
      envFilePath: './.env', // Selecciona el archivo .env basado en el entorno
