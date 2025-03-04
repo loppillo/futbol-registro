@@ -424,8 +424,7 @@ async updatePlay(
     throw new NotFoundException('Jugador no encontrado');
   }
 
-  const allowedFields = ['nombre', 'paterno', 'materno', 'rut', 'fecha_nacimiento', 'fecha_inscripcion', 'sancionado', 'recalificado', 'clubId'];
-  const updatedFields = { ...updatePlayerDto };
+  const allowedFields = ['nombre', 'paterno', 'materno', 'rut', 'fecha_nacimiento', 'fecha_inscripcion', 'sancionado', 'recalificado','clubId'];
   const filteredDto = Object.keys(updatePlayerDto)
     .filter((key) => allowedFields.includes(key))
     .reduce((obj, key) => {
@@ -433,6 +432,16 @@ async updatePlay(
       return obj;
     }, {});
 
+  // 🔹 Convertir sancionado y recalificado a boolean
+  if (filteredDto['sancionado'] !== undefined) {
+    filteredDto['sancionado'] = filteredDto['sancionado'] === 'true' || filteredDto['sancionado'] === true;
+  }
+  if (filteredDto['recalificado'] !== undefined) {
+    filteredDto['recalificado'] = filteredDto['recalificado'] === 'true' || filteredDto['recalificado'] === true;
+  }
+
+
+  
   if (filteredDto['clubId']) {
     const club = await this.clubRepo.findOne({ where: { id: filteredDto['clubId'] } });
     if (!club) {
@@ -440,28 +449,28 @@ async updatePlay(
     }
     playerToUpdate.club = club;
     playerToUpdate.clubId = filteredDto['clubId'];
+    console.log('Nuevo clubId:', playerToUpdate.clubId);
   }
 
-  // Manejo de la foto si se proporciona un archivo
+  // 🔹 Manejo de la foto si se proporciona un archivo
   if (file) {
     if (playerToUpdate.foto) {
       const oldPhotoPath = path.join(__dirname, './uploads/players', playerToUpdate.foto);
       if (fs.existsSync(oldPhotoPath)) {
-        fs.unlinkSync(oldPhotoPath); // Elimina la foto anterior
+        fs.unlinkSync(oldPhotoPath);
       }
     }
-
-    // Asigna la nueva foto
-    updatedFields.foto = file.filename;
+    filteredDto['foto'] = file.filename;
   }
 
-  Object.entries(filteredDto).forEach(([key, value]) => {
-    playerToUpdate[key] = value;
-  });
-  Object.assign(playerToUpdate, updatedFields);
+  Object.assign(playerToUpdate, filteredDto);
+
+ 
+
+ 
   try {
-    const updatedPlayer = await this.jugadoresRepository.save(playerToUpdate);
-    return updatedPlayer;
+    await this.jugadoresRepository.save(playerToUpdate);
+    return this.jugadoresRepository.findOne({ where: { id }, relations: ['club'] });
   } catch (error) {
     console.error('Error al actualizar jugador', error);
     throw new BadRequestException('No se pudo actualizar el jugador');

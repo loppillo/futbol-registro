@@ -1,4 +1,14 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateRegionDto } from './create-region.dto';
+import { IsNotEmpty, IsString } from 'class-validator';
 
-export class UpdateRegionDto extends PartialType(CreateRegionDto) {}
+export class UpdateRegionDto  {
+ 
+
+    @IsString()
+    @IsNotEmpty()
+    name: string;
+
+
+
+}

@@ -248,6 +248,8 @@ async importExcel(@UploadedFile() file: Express.Multer.File) {
       console.log(updateJugadorDto.foto) // Guarda la ruta de la imagen en la base de datos
     }
   
+
+    
     // Llama al servicio para actualizar el jugador
     const updatedPlayer = await this.jugadoresService.updatePlay(
       id,

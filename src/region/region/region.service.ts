@@ -5,6 +5,8 @@ import { Repository } from 'typeorm/repository/Repository';
 import { Region } from './entities/region.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 
+
+
 @Injectable()
 export class RegionService {
 
@@ -16,13 +18,18 @@ export class RegionService {
   }
 
   async create(data: CreateRegionDto): Promise<Region> {
-    console.log('Creating region with data:', data);
+    console.log('Datos recibidos:', data);
+   
+  
     const region = this.regionRepo.create(data);
+    console.log('Objeto Region antes de guardar:', region);
+  
     const savedRegion = await this.regionRepo.save(region);
-    console.log('Region created:', savedRegion);
+    console.log('Región guardada:', savedRegion);
+  
     return savedRegion;
   }
-
+  
   async update(id: number, data: Partial<Region>): Promise<Region> {
     await this.regionRepo.update(id, data);
     return this.regionRepo.findOneBy({ id });
