@@ -4,7 +4,7 @@ import { CreateJugadorDto } from './dto/create-jugador.dto';
 import { UpdateJugadorDto } from './dto/update-jugador.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as XLSX from 'xlsx';
-import { diskStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { extname, join } from 'path';
 import { Response } from 'express';
@@ -21,6 +21,8 @@ import { AuthGuard } from 'src/auth/guard/auth.guard';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { JwtStrategy } from 'src/auth/jwt.strategy';
+const Tesseract = require('tesseract.js');
+
 
 
 
@@ -52,16 +54,16 @@ interface ClubData {
 
 
 interface Jugado {
-  id:number;
-  paterno:string;
-  materno:string;
+  id: number;
+  paterno: string;
+  materno: string;
   nombre: string;
   rut: string;
   fecha_nacimiento?: number | string;
-  club_deportivo:string;
+  club_deportivo: string;
   asociacion: string;
   fecha_inscripcion?: number | string; // Fecha en número o string
-  foto:string;
+  foto: string;
 }
 
 
@@ -69,8 +71,8 @@ interface Jugado {
 
 @Controller('jugadores')
 export class JugadoresController {
-  constructor(private readonly jugadoresService: JugadoresService,@InjectRepository(Jugador)
-  private jugadoresRepository: Repository<Jugador>,) {}
+  constructor(private readonly jugadoresService: JugadoresService, @InjectRepository(Jugador)
+  private jugadoresRepository: Repository<Jugador>,) { }
 
   @Post('create')
   @UseInterceptors(
@@ -83,7 +85,7 @@ export class JugadoresController {
           callback(null, filename);
         },
       }),
-      limits: { fileSize: 5 * 1024 * 1024 }, 
+      limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (req, file, callback) => {
         const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg'];
         if (!allowedMimeTypes.includes(file.mimetype)) {
@@ -98,21 +100,21 @@ export class JugadoresController {
     @Body() playerData: CreateJugadorDto
   ) {
     if (!file) throw new BadRequestException('Se requiere una imagen');
-    const imagePath = `uploads/players/${file.filename}`; 
-    playerData.foto = imagePath; 
+    const imagePath = `uploads/players/${file.filename}`;
+    playerData.foto = imagePath;
     const player = await this.jugadoresService.createPlayer(playerData);
     return { message: 'Jugador creado con éxito', player };
   }
 
-  
+
   @Get('duplicados')
   async obtenerDuplicados(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
   ) {
     const pageNumber = isNaN(Number(page)) ? 1 : Number(page);
-  const limitNumber = isNaN(Number(limit)) ? 10 : Number(limit);
-  const skip = (pageNumber - 1) * limitNumber;
+    const limitNumber = isNaN(Number(limit)) ? 10 : Number(limit);
+    const skip = (pageNumber - 1) * limitNumber;
     return this.jugadoresService.obtenerDuplicados(page, limit);
   }
 
@@ -172,28 +174,28 @@ export class JugadoresController {
 
 
 
-@Get('obtener')
-async getPlayers(@Query() paginationDto: PaginationDto): Promise<{ players: JugadorResponseDto[]; total: number }> {
-  return this.jugadoresService.findAll(paginationDto);
-}
+  @Get('obtener')
+  async getPlayers(@Query() paginationDto: PaginationDto): Promise<{ players: JugadorResponseDto[]; total: number }> {
+    return this.jugadoresService.findAll(paginationDto);
+  }
 
 
-@Post('excel')
-@UseInterceptors(
-  FileInterceptor('file', {
-    storage: diskStorage({
-      destination: './uploads/jugadores', // Custom folder for uploads
-      filename: (req, file, callback) => {
-        const filename = `${Date.now()}-${file.originalname}`;
-        callback(null, filename); // Set the filename
-      },
+  @Post('excel')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/jugadores', // Custom folder for uploads
+        filename: (req, file, callback) => {
+          const filename = `${Date.now()}-${file.originalname}`;
+          callback(null, filename); // Set the filename
+        },
+      }),
     }),
-  }),
-)
-async importExcel(@UploadedFile() file: Express.Multer.File) {
-  const imagePath = file.path; // Get the correct path from the uploaded file
-  return await this.jugadoresService.importFromExcel(imagePath);
-}
+  )
+  async importExcel(@UploadedFile() file: Express.Multer.File) {
+    const imagePath = file.path; // Get the correct path from the uploaded file
+    return await this.jugadoresService.importFromExcel(imagePath);
+  }
 
   // jugadores.controller.ts
   @Get('l')
@@ -209,7 +211,7 @@ async importExcel(@UploadedFile() file: Express.Multer.File) {
     return await this.jugadoresService.obtenerJugadorPorId(id);
   }
 
- 
+
 
 
   @Put(':id')
@@ -247,15 +249,15 @@ async importExcel(@UploadedFile() file: Express.Multer.File) {
       updateJugadorDto.foto = filePath;
       console.log(updateJugadorDto.foto) // Guarda la ruta de la imagen en la base de datos
     }
-  
 
-    
+
+
     // Llama al servicio para actualizar el jugador
     const updatedPlayer = await this.jugadoresService.updatePlay(
       id,
       updateJugadorDto
     );
-  
+
     // Retorna la respuesta con la URL pública
     return {
       message: 'Jugador actualizado con éxito',
@@ -279,35 +281,35 @@ async importExcel(@UploadedFile() file: Express.Multer.File) {
 
 
   @Post('upload')
-@UseInterceptors(FileInterceptor('file', {
-  storage: diskStorage({
-    destination: './uploads',
-    filename: (_req, file, cb) => {
-      const filename = `${Date.now()}-${file.originalname}`;
-      cb(null, filename);
-    },
-  }),
-}))
-async importarJugadores(@UploadedFile() file: Express.Multer.File) {
-  if (!file) {
-    throw new BadRequestException('No se ha proporcionado ningún archivo');
-  }
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './uploads',
+      filename: (_req, file, cb) => {
+        const filename = `${Date.now()}-${file.originalname}`;
+        cb(null, filename);
+      },
+    }),
+  }))
+  async importarJugadores(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No se ha proporcionado ningún archivo');
+    }
 
-  // Leer el archivo Excel
-  const workbook = XLSX.readFile(file.path);
-  const sheetName = workbook.SheetNames[0];
-  const worksheet = workbook.Sheets[sheetName];
-  const jugadores: Jugador[] = XLSX.utils.sheet_to_json(worksheet);
+    // Leer el archivo Excel
+    const workbook = XLSX.readFile(file.path);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const jugadores: Jugador[] = XLSX.utils.sheet_to_json(worksheet);
 
-  // Convertir fechas numéricas a formato legible
+    // Convertir fechas numéricas a formato legible
 
-    
+
     const jugadoresConFechaConvertida = jugadores.map((jugador) => {
-     
-    
-     
-    
-  
+
+
+
+
+
       return {
         rut: jugador.rut || 'No dato',
         nombre: jugador.nombre || 'No dato',
@@ -315,59 +317,127 @@ async importarJugadores(@UploadedFile() file: Express.Multer.File) {
         paterno: jugador.paterno || 'No dato',
 
         fecha_nacimiento: jugador.fecha_nacimiento || 'No dato',
-  
-        fecha_inscripcion:jugador.fecha_inscripcion || '2024-08-20'
+
+        fecha_inscripcion: jugador.fecha_inscripcion || '2024-08-20'
       };
     });
 
- // Guardar jugadores con fechas convertidas
- const resultado = await this.jugadoresService.importarJugadores(jugadoresConFechaConvertida);
+    // Guardar jugadores con fechas convertidas
+    const resultado = await this.jugadoresService.importarJugadores(jugadoresConFechaConvertida);
 
- return resultado;
-}
+    return resultado;
+  }
+
+
+
+
+  @Post('validar-rut-imagen')
+  @UseInterceptors(FileInterceptor('foto', { storage: memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }))
+  async validarRutImagen(@UploadedFile() foto: Express.Multer.File) {
+    if (!foto) {
+      throw new BadRequestException('Debe subir una imagen');
+    }
+
+    const imageBase64 = `data:image/jpeg;base64,${foto.buffer.toString('base64')}`;
+
+    const { data } = await Tesseract.recognize(imageBase64, 'spa');
    
-    
-  
+    const rutEncontrado = this.extraerRut(data.text);
 
 
-  
 
- 
+    this.validarRutChileno(rutEncontrado)
+    console.log(rutEncontrado)
 
+    const usuarioExistente = await this.jugadoresRepository.findOne({ where: { rut: rutEncontrado } });
+    if (!usuarioExistente) {
+      return { mensaje: 'RUT válido y no registrado', rut: rutEncontrado };
 
-@Get('buscar/:rut')
-async buscarPorRut(@Param('rut') rut: string) {
-  const jugador = await this.jugadoresService.buscarPorRut(rut);
-  if (!jugador) {
-    throw new NotFoundException('Jugador no encontrado');
-  }
-  return jugador;
-}
+    }else{
+      return { mensaje: 'RUT válido y registrado', rut: rutEncontrado };
+    }
 
-// jugadores.controller.ts
-@UseGuards(JwtStrategy)
-@UseGuards(AuthGuard)
-@Get('buscarEquipo/:club_deportivo')
-async buscarPorClub(@Param('club_deportivo') club_deportivo: string, @Req() req) {
-  const user = req.user;  // Aquí obtenemos al usuario de la solicitud
-  
-
-  // Verificar el rol y la región
-  if (user.role === 'dirigente' && !user.region) {
     
 
-    throw new UnauthorizedException('Access denied: Region is required for dirigente');
+
+
   }
 
-   
-  // Realizar la búsqueda de jugadores con el club y la región
-  const jugadores = await this.jugadoresService.buscarPorClub(club_deportivo, user.region);
-  if (jugadores.length === 0) {
-    throw new NotFoundException('No se encontraron jugadores para el club deportivo especificado');
+  private extraerRut(texto: string): string | null {
+    console.log('Texto extraído por OCR:', texto); // Depuración
+
+    // Eliminar caracteres innecesarios dejando solo números, puntos, guiones y 'K'
+    texto = texto.replace(/[^0-9Kk.-]/g, '');
+
+    // Expresión regular mejorada para detectar RUT correctamente formateado
+    const regex = /(\d{1,2}\.\d{3}\.\d{3}-[0-9Kk])/g;
+    const match = regex.exec(texto);
+
+    if (match) {
+      console.log('RUT extraído:', match[1]);
+      return match[1].toUpperCase(); // Asegurar que 'k' sea 'K'
+    }
+
+    console.log('No se encontró RUT en el texto OCR');
+    return null;
   }
 
-  return jugadores;
-}
+
+
+  private validarRutChileno(rut: string): boolean {
+    rut = rut.replace(/\./g, '').replace(/-/g, '');
+    const cuerpo = rut.slice(0, -1);
+    const dv = rut.slice(-1).toUpperCase();
+
+    let suma = 0;
+    let multiplo = 2;
+    for (let i = cuerpo.length - 1; i >= 0; i--) {
+      suma += parseInt(cuerpo.charAt(i)) * multiplo;
+      multiplo = multiplo < 7 ? multiplo + 1 : 2;
+    }
+    const dvEsperado = 11 - (suma % 11);
+    const dvCalculado = dvEsperado === 11 ? '0' : dvEsperado === 10 ? 'K' : dvEsperado.toString();
+
+    return dv === dvCalculado;
+  }
+
+
+
+
+
+  @Get('buscar/:rut')
+  async buscarPorRut(@Param('rut') rut: string) {
+    const jugador = await this.jugadoresService.buscarPorRut(rut);
+    if (!jugador) {
+      throw new NotFoundException('Jugador no encontrado');
+    }
+    return jugador;
+  }
+
+  // jugadores.controller.ts
+  @UseGuards(JwtStrategy)
+  @UseGuards(AuthGuard)
+  @Get('buscarEquipo/:club_deportivo')
+  async buscarPorClub(@Param('club_deportivo') club_deportivo: string, @Req() req) {
+    const user = req.user;  // Aquí obtenemos al usuario de la solicitud
+
+
+    // Verificar el rol y la región
+    if (user.role === 'dirigente' && !user.region) {
+
+
+      throw new UnauthorizedException('Access denied: Region is required for dirigente');
+    }
+
+
+    // Realizar la búsqueda de jugadores con el club y la región
+    const jugadores = await this.jugadoresService.buscarPorClub(club_deportivo, user.region);
+    if (jugadores.length === 0) {
+      throw new NotFoundException('No se encontraron jugadores para el club deportivo especificado');
+    }
+
+    return jugadores;
+  }
 
 
 
@@ -375,7 +445,7 @@ async buscarPorClub(@Param('club_deportivo') club_deportivo: string, @Req() req)
     if (!fechaExcel || isNaN(fechaExcel)) {
       return '2023-08-20'; // Valor predeterminado si la fecha es inválida
     }
-  
+
     const fechaBase = new Date(1900, 0, fechaExcel - 1); // 1 de enero de 1900
     fechaBase.setDate(fechaBase.getDate() + 1); // Ajuste para Excel
     return fechaBase.toISOString().split('T')[0]; // Retorna en formato 'YYYY-MM-DD'
@@ -399,52 +469,52 @@ async buscarPorClub(@Param('club_deportivo') club_deportivo: string, @Req() req)
     // La imagen ya se guardó en la carpeta especificada
     return { message: 'Imagen subida exitosamente', filename: file.filename };
   }
-  
+
 
 
   @Get('photo/:id')
-async getPhotoByJugadorId(@Param('id') id: number, @Res() res: Response) {
-  try {
-    const directoryPath = join(process.cwd(), './uploads/players'); 
-    console.log('Path de la carpeta:', directoryPath);
-    console.log('ID del jugador:', id);
+  async getPhotoByJugadorId(@Param('id') id: number, @Res() res: Response) {
+    try {
+      const directoryPath = join(process.cwd(), './uploads/players');
+      console.log('Path de la carpeta:', directoryPath);
+      console.log('ID del jugador:', id);
 
-    // Verifica si el directorio existe
-    if (!fs.existsSync(directoryPath)) {
-      console.error('El directorio no existe:', directoryPath);
-      return res.status(404).json({ message: 'Directorio no existe' });
+      // Verifica si el directorio existe
+      if (!fs.existsSync(directoryPath)) {
+        console.error('El directorio no existe:', directoryPath);
+        return res.status(404).json({ message: 'Directorio no existe' });
+      }
+
+      // Obtiene todos los archivos de la carpeta
+      const files = fs.readdirSync(directoryPath);
+
+      // Busca el archivo que contenga el ID
+      const playerImage = files.find((file) => file.includes(`player-${id}-`)); // ✅ Ahora busca el ID
+
+      if (playerImage) {
+        console.log('Imagen encontrada:', playerImage);
+        const filePath = join(directoryPath, playerImage);
+        res.sendFile(filePath, (err) => {
+          if (err) {
+            console.error('Error al enviar la imagen:', err);
+            res.status(500).json({ message: 'Error al enviar la imagen' });
+          }
+        });
+      } else {
+        console.error('Imagen no encontrada para el jugador con ID:', id);
+        return res.status(404).json({ message: 'Imagen no encontrada' });
+      }
+    } catch (error) {
+      console.error('Error general:', error);
+      res.status(500).json({ message: 'Error en el servidor' });
     }
-
-    // Obtiene todos los archivos de la carpeta
-    const files = fs.readdirSync(directoryPath);
-
-    // Busca el archivo que contenga el ID
-    const playerImage = files.find((file) => file.includes(`player-${id}-`)); // ✅ Ahora busca el ID
-
-    if (playerImage) {
-      console.log('Imagen encontrada:', playerImage);
-      const filePath = join(directoryPath, playerImage);
-      res.sendFile(filePath, (err) => {
-        if (err) {
-          console.error('Error al enviar la imagen:', err);
-          res.status(500).json({ message: 'Error al enviar la imagen' });
-        }
-      });
-    } else {
-      console.error('Imagen no encontrada para el jugador con ID:', id);
-      return res.status(404).json({ message: 'Imagen no encontrada' });
-    }
-  } catch (error) {
-    console.error('Error general:', error);
-    res.status(500).json({ message: 'Error en el servidor' });
   }
-}
-  
-  
 
 
 
-  @Put('update/:id') 
+
+
+  @Put('update/:id')
   @UseInterceptors(
     FileInterceptor('image', {
       storage: diskStorage({
@@ -469,7 +539,7 @@ async getPhotoByJugadorId(@Param('id') id: number, @Res() res: Response) {
     }
 
     const updatedPlayer = await this.jugadoresService.updatePlay(id, updatePlayerDto);
-    
+
     return {
       message: 'Jugador updated successfully',
       player: {
@@ -517,12 +587,12 @@ async getPhotoByJugadorId(@Param('id') id: number, @Res() res: Response) {
   }
 
 
-  
+
 }
 
 
-  
-  
+
+
 
 
 

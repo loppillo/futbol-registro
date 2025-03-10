@@ -44,7 +44,7 @@ export class JugadoresService {
   
   async create(createJugadorDto: CreateJugadorDto): Promise<Jugador> {
     const { rut, clubId, nombre, paterno, materno, fecha_nacimiento, fecha_inscripcion, foto, recalificado } = createJugadorDto;
-    console.log(foto)
+    
     // Validar clubId como número entero
     const clubIdNumber = parseInt(clubId.toString(), 10);
     if (isNaN(clubIdNumber)) {
@@ -173,7 +173,7 @@ export class JugadoresService {
     const jugador = await this.findOne(id);
     await this.jugadoresRepository.remove(jugador);
   }
-
+  
   // Function to convert Excel date to 'YYYY-MM-DD' format
 private convertirFechaExcel(fechaExcel: number): string {
   const fechaBase = new Date(1900, 0, fechaExcel - 1); // Base date in Excel

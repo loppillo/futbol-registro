@@ -22,7 +22,7 @@ export class ClubService {
   async findAll(): Promise<Club[]> {
     return this.clubRepo.find({ relations: ['asociacion'] });
   }
-
+  
   async create(data: Partial<Club>): Promise<Club> {
     const club = this.clubRepo.create(data);
     return this.clubRepo.save(club);
