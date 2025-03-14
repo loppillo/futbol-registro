@@ -41,45 +41,50 @@ export class JugadoresService {
   
 
 
-  
   async create(createJugadorDto: CreateJugadorDto): Promise<Jugador> {
     const { rut, clubId, nombre, paterno, materno, fecha_nacimiento, fecha_inscripcion, foto, recalificado } = createJugadorDto;
-
+  
     const clubIdNumber = parseInt(clubId.toString(), 10);
     if (isNaN(clubIdNumber)) {
-        throw new BadRequestException('El clubId es inválido o no es un número.');
+      throw new BadRequestException('El clubId es inválido o no es un número.');
     }
-
+  
     // Verificar si ya existe un jugador con el mismo RUT
     const jugadorExistente = await this.jugadoresRepository.findOne({ where: { rut } });
     if (jugadorExistente) {
-        throw new ConflictException('El jugador con este RUT ya existe.');
+      throw new ConflictException('El jugador con este RUT ya existe.');
     }
-
+  
     // Buscar el club relacionado
     const club = await this.jugadoresRepository.findOne({ where: { id: clubIdNumber } });
     if (!club) {
-        throw new NotFoundException('El club especificado no existe.');
+      throw new NotFoundException('El club especificado no existe.');
     }
-
+  
     // Asegurar que la foto tenga un valor correcto
-    const fotoPath = foto ? `uploads/players/${foto}` : null;
-
+    let fotoPath = null;
+    if (foto) {
+      // Si se recibe una foto, crear el path correcto
+      fotoPath = `uploads/players/${foto}`;
+    }
+  
     // Crear el nuevo jugador con la ruta de la foto
     const nuevoJugador = this.jugadoresRepository.create({
-        rut,
-        nombre,
-        paterno,
-        materno,
-        fecha_nacimiento,
-        fecha_inscripcion,
-        foto: fotoPath, // Guardar la ruta de la imagen
-        recalificado,
-        club
+      rut,
+      nombre,
+      paterno,
+      materno,
+      fecha_nacimiento,
+      fecha_inscripcion,
+      foto: fotoPath, // Guardar la ruta de la imagen
+      recalificado,
+      club,
     });
-
+  
+    // Guardar el nuevo jugador en la base de datos
     return this.jugadoresRepository.save(nuevoJugador);
-}
+  }
+  
 
 
 
@@ -273,9 +278,9 @@ async markDuplicates() {
     // Si el jugador tiene una foto, construir la URL completa
     if (jugador && jugador.foto) {
       // Reemplazar duplicaciones de "/players/"
-      jugador.foto = `${baseUrl}/${jugador.foto.replace(/.*players\//, 'players/')}`;
+      jugador.foto = `${baseUrl}/${jugador.foto}`;
     }
-    console.log('foto',jugador.foto.replace(/^\/?\/+/, ''))
+    console.log('foto',jugador)
     return jugador;
   }
   
@@ -424,85 +429,28 @@ async markDuplicates() {
 
 async updatePlay(
   id: number,
-  updatePlayerDto: Partial<UpdateJugadorDto>, 
+  updateJugadorDto: Partial<UpdateJugadorDto>, 
   file?: Express.Multer.File
 ): Promise<Jugador> {
-  const playerToUpdate = await this.jugadoresRepository.findOne({ where: { id }, relations: ['club'] });
+   // 🔹 Buscar al jugador
+   const playerToUpdate = await this.jugadoresRepository.findOne({
+    where: { id },
+    relations: ['club'],
+  });
   if (!playerToUpdate) {
     throw new NotFoundException('Jugador no encontrado');
   }
 
-  const allowedFields = ['nombre', 'paterno', 'materno', 'rut', 'fecha_nacimiento', 'fecha_inscripcion', 'sancionado', 'recalificado','clubId'];
-  const filteredDto = Object.keys(updatePlayerDto)
-    .filter((key) => allowedFields.includes(key))
-    .reduce((obj, key) => {
-      obj[key] = updatePlayerDto[key];
-      return obj;
-    }, {});
-
-  // 🔹 Convertir sancionado y recalificado a boolean
-  if (filteredDto['sancionado'] !== undefined) {
-    filteredDto['sancionado'] = filteredDto['sancionado'] === 'true' || filteredDto['sancionado'] === true;
-  }
-  if (filteredDto['recalificado'] !== undefined) {
-    filteredDto['recalificado'] = filteredDto['recalificado'] === 'true' || filteredDto['recalificado'] === true;
-  }
-
-
-  
-  if (filteredDto['clubId']) {
-    const club = await this.clubRepo.findOne({ where: { id: filteredDto['clubId'] } });
-    if (!club) {
-      throw new BadRequestException('Club no encontrado');
-    }
-    playerToUpdate.club = club;
-    playerToUpdate.clubId = filteredDto['clubId'];
-    console.log('Nuevo clubId:', playerToUpdate.clubId);
-  }
-
-  // 🔹 Manejo de la foto si se proporciona un archivo
-  if (file) {
-    if (playerToUpdate.foto) {
-      const oldPhotoPath = path.join(__dirname, './uploads/players', playerToUpdate.foto);
-      if (fs.existsSync(oldPhotoPath)) {
-        fs.unlinkSync(oldPhotoPath);
-      }
-    }
-    filteredDto['foto'] = file.filename;
-  }
-
-  Object.assign(playerToUpdate, filteredDto);
-
- 
-
- 
-  try {
-    await this.jugadoresRepository.save(playerToUpdate);
-    return this.jugadoresRepository.findOne({ where: { id }, relations: ['club'] });
-  } catch (error) {
-    console.error('Error al actualizar jugador', error);
-    throw new BadRequestException('No se pudo actualizar el jugador');
-  }
-}
-
-async updatePlayerWithFoto(id: number, updateJugadorDto: Partial<UpdateJugadorDto>, file?: Express.Multer.File) {
-  // Busca al jugador en la base de datos
-  const playerToUpdate = await this.jugadoresRepository.findOne({ where: { id }, relations: ['club'] });
-  if (!playerToUpdate) {
-    throw new NotFoundException('Jugador no encontrado');
-  }
-
-  // Convierte las fechas de string a Date si están presentes
-  const updatedFields = { ...updateJugadorDto };
+  // 🔹 Convertir fechas de string a Date si están presentes
   if (updateJugadorDto.fecha_nacimiento) {
-    updatedFields.fecha_nacimiento = new Date(updateJugadorDto.fecha_nacimiento);
+    updateJugadorDto.fecha_nacimiento = new Date(updateJugadorDto.fecha_nacimiento);
   }
   if (updateJugadorDto.fecha_inscripcion) {
-    updatedFields.fecha_inscripcion = new Date(updateJugadorDto.fecha_inscripcion);
+    updateJugadorDto.fecha_inscripcion = new Date(updateJugadorDto.fecha_inscripcion);
   }
 
-  // Verifica el club si corresponde
-  if (updateJugadorDto.clubId) {
+  // 🔹 Verificar y actualizar club si es necesario
+  if (updateJugadorDto.clubId && updateJugadorDto.clubId !== playerToUpdate.club.id) {
     const club = await this.clubRepo.findOne({ where: { id: updateJugadorDto.clubId } });
     if (!club) {
       throw new BadRequestException('Club no encontrado');
@@ -510,8 +458,9 @@ async updatePlayerWithFoto(id: number, updateJugadorDto: Partial<UpdateJugadorDt
     playerToUpdate.club = club;
   }
 
-  // Manejo de la foto si se proporciona un archivo
+  // 🔹 Manejo de la foto si se proporciona un archivo
   if (file) {
+    // Eliminar la foto anterior si existe
     if (playerToUpdate.foto) {
       const oldPhotoPath = path.join(__dirname, '../../uploads/players', playerToUpdate.foto);
       if (fs.existsSync(oldPhotoPath)) {
@@ -519,13 +468,21 @@ async updatePlayerWithFoto(id: number, updateJugadorDto: Partial<UpdateJugadorDt
       }
     }
 
-    // Asigna la nueva foto
-    updatedFields.foto = file.filename;
+    // Asigna la nueva foto con la ruta correcta
+    playerToUpdate.foto = `players/${file.filename}`;
   }
 
-  // Asigna los campos actualizados al jugador
-  Object.assign(playerToUpdate, updatedFields);
-  return await this.jugadoresRepository.save(playerToUpdate);
+  // 🔹 Aplicar los cambios al jugador
+  Object.assign(playerToUpdate, updateJugadorDto);
+
+  // 🔹 Guardar los cambios en la base de datos
+  await this.jugadoresRepository.save(playerToUpdate);
+
+  // 🔹 Recargar el jugador actualizado con relaciones
+  return await this.jugadoresRepository.findOne({
+    where: { id },
+    relations: ['club'],
+  });
 }
 
 

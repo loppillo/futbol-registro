@@ -50,8 +50,7 @@ export declare class JugadoresService {
     findAllPlayers(): Promise<Jugador[]>;
     createPlayer(createJugadorDto: CreateJugadorDto, file?: Express.Multer.File): Promise<Jugador>;
     updatePlayer(id: number, updatePlayerDto: UpdateJugadorDto): Promise<Jugador>;
-    updatePlay(id: number, updatePlayerDto: Partial<UpdateJugadorDto>, file?: Express.Multer.File): Promise<Jugador>;
-    updatePlayerWithFoto(id: number, updateJugadorDto: Partial<UpdateJugadorDto>, file?: Express.Multer.File): Promise<Jugador>;
+    updatePlay(id: number, updateJugadorDto: Partial<UpdateJugadorDto>, file?: Express.Multer.File): Promise<Jugador>;
     getAllPlayers(paginationDto: PaginationDto): Promise<void>;
     obtenerDuplicados(page?: number, limit?: number): Promise<{
         jugadores: {
