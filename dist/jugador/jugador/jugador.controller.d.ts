@@ -97,7 +97,7 @@ export declare class JugadoresController {
         message: string;
         filename: string;
     }>;
-    getPhotoByJugadorId(id: number, res: Response): Promise<Response<any, Record<string, any>>>;
+    getPhotoByJugadorId(id: string, res: Response): Promise<void | Response<any, Record<string, any>>>;
     updatePlayer(id: number, file: Express.Multer.File, updatePlayerDto: UpdateJugadorDto): Promise<{
         message: string;
         player: {

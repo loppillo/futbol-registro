@@ -49,6 +49,7 @@ let JugadoresService = class JugadoresService {
         if (!club) {
             throw new common_1.NotFoundException('El club especificado no existe.');
         }
+        const fotoPath = foto ? `uploads/players/${foto}` : null;
         const nuevoJugador = this.jugadoresRepository.create({
             rut,
             nombre,
@@ -56,9 +57,9 @@ let JugadoresService = class JugadoresService {
             materno,
             fecha_nacimiento,
             fecha_inscripcion,
-            foto,
+            foto: fotoPath,
             recalificado,
-            club,
+            club
         });
         return this.jugadoresRepository.save(nuevoJugador);
     }
@@ -179,16 +180,15 @@ let JugadoresService = class JugadoresService {
         }
     }
     async buscarPorRut(rut) {
-        const baseUrl = 'https://fenfurnacional.com';
-        console.log(baseUrl);
+        const baseUrl = 'https://fenfurnacional.com/uploads';
         const jugador = await this.jugadoresRepository.findOne({
             where: { rut },
             relations: ['club', 'club.asociacion', 'club.asociacion.region'],
         });
         if (jugador && jugador.foto) {
-            jugador.foto = `${baseUrl}/${jugador.foto}`;
+            jugador.foto = `${baseUrl}/${jugador.foto.replace(/.*players\//, 'players/')}`;
         }
-        console.log(jugador.foto);
+        console.log('foto', jugador.foto.replace(/^\/?\/+/, ''));
         return jugador;
     }
     async buscarPorClub(club_deportivo, regionName) {
@@ -241,9 +241,8 @@ let JugadoresService = class JugadoresService {
     async findAllPlayers() {
         return await this.jugadoresRepository.find();
     }
-    async createPlayer(createPlayerDto, imagePath) {
-        const { rut, clubId, nombre, paterno, materno, fecha_nacimiento, fecha_inscripcion, foto, recalificado } = createPlayerDto;
-        console.log('createPlayerDto:', createPlayerDto);
+    async createPlayer(createJugadorDto, file) {
+        const { rut, clubId, nombre, paterno, materno, fecha_nacimiento, fecha_inscripcion, recalificado } = createJugadorDto;
         const clubIdNumber = parseInt(clubId.toString(), 10);
         if (isNaN(clubIdNumber)) {
             throw new common_1.BadRequestException('El clubId es inválido o no es un número.');
@@ -252,10 +251,13 @@ let JugadoresService = class JugadoresService {
         if (jugadorExistente) {
             throw new common_1.ConflictException('El jugador con este RUT ya existe.');
         }
-        console.log('Buscando club con id:', clubIdNumber);
         const club = await this.clubRepo.findOne({ where: { id: clubIdNumber } });
         if (!club) {
             throw new common_1.NotFoundException('El club especificado no existe.');
+        }
+        let fotoUrl = null;
+        if (file) {
+            fotoUrl = `/uploads/${file.filename}`;
         }
         const nuevoJugador = this.jugadoresRepository.create({
             rut,
@@ -264,7 +266,7 @@ let JugadoresService = class JugadoresService {
             materno,
             fecha_nacimiento,
             fecha_inscripcion,
-            foto: imagePath || foto,
+            foto: fotoUrl,
             recalificado,
             club,
         });

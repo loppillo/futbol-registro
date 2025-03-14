@@ -50,9 +50,9 @@ let JugadoresController = class JugadoresController {
     async Player(file, playerData) {
         if (!file)
             throw new common_1.BadRequestException('Se requiere una imagen');
-        const imagePath = `uploads/players/${file.filename}`;
+        const imagePath = `/players/${file.filename}`;
         playerData.foto = imagePath;
-        const player = await this.jugadoresService.createPlayer(playerData);
+        const player = await this.jugadoresService.create(playerData);
         return { message: 'Jugador creado con éxito', player };
     }
     async obtenerDuplicados(page = 1, limit = 10) {
@@ -66,7 +66,7 @@ let JugadoresController = class JugadoresController {
             throw new common_1.BadRequestException('Se requiere una imagen para crear el jugador.');
         }
         const imagePath = `https://fenfurnacional.com/uploads/players/${file.filename}`;
-        const player = await this.jugadoresService.createPlayer({ ...playerData }, imagePath);
+        const player = await this.jugadoresService.createPlayer({ ...playerData });
         return {
             message: 'Jugador creado con éxito',
             player,
@@ -204,7 +204,7 @@ let JugadoresController = class JugadoresController {
     }
     async getPhotoByJugadorId(id, res) {
         try {
-            const directoryPath = (0, path_1.join)(process.cwd(), './uploads/players');
+            const directoryPath = (0, path_1.join)(process.cwd(), 'uploads/players');
             console.log('Path de la carpeta:', directoryPath);
             console.log('ID del jugador:', id);
             if (!fs.existsSync(directoryPath)) {
@@ -212,16 +212,12 @@ let JugadoresController = class JugadoresController {
                 return res.status(404).json({ message: 'Directorio no existe' });
             }
             const files = fs.readdirSync(directoryPath);
-            const playerImage = files.find((file) => file.includes(`player-${id}-`));
+            console.log('Archivos en la carpeta:', files);
+            const playerImage = files.find(file => file.includes(`player-${id}-`));
             if (playerImage) {
                 console.log('Imagen encontrada:', playerImage);
                 const filePath = (0, path_1.join)(directoryPath, playerImage);
-                res.sendFile(filePath, (err) => {
-                    if (err) {
-                        console.error('Error al enviar la imagen:', err);
-                        res.status(500).json({ message: 'Error al enviar la imagen' });
-                    }
-                });
+                return res.sendFile(filePath);
             }
             else {
                 console.error('Imagen no encontrada para el jugador con ID:', id);
@@ -230,7 +226,7 @@ let JugadoresController = class JugadoresController {
         }
         catch (error) {
             console.error('Error general:', error);
-            res.status(500).json({ message: 'Error en el servidor' });
+            return res.status(500).json({ message: 'Error en el servidor' });
         }
     }
     async updatePlayer(id, file, updatePlayerDto) {
@@ -466,7 +462,7 @@ __decorate([
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], JugadoresController.prototype, "getPhotoByJugadorId", null);
 __decorate([

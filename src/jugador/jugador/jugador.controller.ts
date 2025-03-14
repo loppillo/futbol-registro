@@ -100,9 +100,9 @@ export class JugadoresController {
     @Body() playerData: CreateJugadorDto
   ) {
     if (!file) throw new BadRequestException('Se requiere una imagen');
-    const imagePath = `uploads/players/${file.filename}`;
+    const imagePath = `/players/${file.filename}`;
     playerData.foto = imagePath;
-    const player = await this.jugadoresService.createPlayer(playerData);
+    const player = await this.jugadoresService.create(playerData);
     return { message: 'Jugador creado con éxito', player };
   }
 
@@ -158,7 +158,7 @@ export class JugadoresController {
     // Crear el jugador con los datos proporcionados
     const player = await this.jugadoresService.createPlayer(
       { ...playerData }, // DTO con los datos del jugador
-      imagePath         // Ruta de la imagen
+              // Ruta de la imagen
     );
 
     // Confirmar la creación del jugador
@@ -473,40 +473,36 @@ export class JugadoresController {
 
 
   @Get('photo/:id')
-  async getPhotoByJugadorId(@Param('id') id: number, @Res() res: Response) {
+  async getPhotoByJugadorId(@Param('id') id: string, @Res() res: Response) {
     try {
-      const directoryPath = join(process.cwd(), './uploads/players');
+      const directoryPath = join(process.cwd(), 'uploads/players');
       console.log('Path de la carpeta:', directoryPath);
       console.log('ID del jugador:', id);
 
-      // Verifica si el directorio existe
+      // Verificar si el directorio existe
       if (!fs.existsSync(directoryPath)) {
         console.error('El directorio no existe:', directoryPath);
         return res.status(404).json({ message: 'Directorio no existe' });
       }
 
-      // Obtiene todos los archivos de la carpeta
+      // Obtener todos los archivos de la carpeta
       const files = fs.readdirSync(directoryPath);
+      console.log('Archivos en la carpeta:', files);
 
-      // Busca el archivo que contenga el ID
-      const playerImage = files.find((file) => file.includes(`player-${id}-`)); // ✅ Ahora busca el ID
-
+      // Buscar el archivo con el ID del jugador
+      const playerImage = files.find(file => file.includes(`player-${id}-`));
+      
       if (playerImage) {
         console.log('Imagen encontrada:', playerImage);
         const filePath = join(directoryPath, playerImage);
-        res.sendFile(filePath, (err) => {
-          if (err) {
-            console.error('Error al enviar la imagen:', err);
-            res.status(500).json({ message: 'Error al enviar la imagen' });
-          }
-        });
+        return res.sendFile(filePath);
       } else {
         console.error('Imagen no encontrada para el jugador con ID:', id);
         return res.status(404).json({ message: 'Imagen no encontrada' });
       }
     } catch (error) {
       console.error('Error general:', error);
-      res.status(500).json({ message: 'Error en el servidor' });
+      return res.status(500).json({ message: 'Error en el servidor' });
     }
   }
 

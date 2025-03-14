@@ -44,41 +44,44 @@ export class JugadoresService {
   
   async create(createJugadorDto: CreateJugadorDto): Promise<Jugador> {
     const { rut, clubId, nombre, paterno, materno, fecha_nacimiento, fecha_inscripcion, foto, recalificado } = createJugadorDto;
-    
-    // Validar clubId como número entero
+
     const clubIdNumber = parseInt(clubId.toString(), 10);
     if (isNaN(clubIdNumber)) {
-      throw new BadRequestException('El clubId es inválido o no es un número.');
+        throw new BadRequestException('El clubId es inválido o no es un número.');
     }
 
     // Verificar si ya existe un jugador con el mismo RUT
     const jugadorExistente = await this.jugadoresRepository.findOne({ where: { rut } });
     if (jugadorExistente) {
-      throw new ConflictException('El jugador con este RUT ya existe.');
+        throw new ConflictException('El jugador con este RUT ya existe.');
     }
 
-    // Buscar el club relacionado por id
+    // Buscar el club relacionado
     const club = await this.jugadoresRepository.findOne({ where: { id: clubIdNumber } });
     if (!club) {
-      throw new NotFoundException('El club especificado no existe.');
+        throw new NotFoundException('El club especificado no existe.');
     }
 
-    // Crear el nuevo jugador
+    // Asegurar que la foto tenga un valor correcto
+    const fotoPath = foto ? `uploads/players/${foto}` : null;
+
+    // Crear el nuevo jugador con la ruta de la foto
     const nuevoJugador = this.jugadoresRepository.create({
-      rut,
-      nombre,
-      paterno,
-      materno,
-      fecha_nacimiento,
-      fecha_inscripcion,
-      foto, // Asignar la ruta de la foto
-      recalificado,
-      club, // Asignar club relacionado
+        rut,
+        nombre,
+        paterno,
+        materno,
+        fecha_nacimiento,
+        fecha_inscripcion,
+        foto: fotoPath, // Guardar la ruta de la imagen
+        recalificado,
+        club
     });
 
-    // Guardar en la base de datos y devolver el jugador creado
     return this.jugadoresRepository.save(nuevoJugador);
-  }
+}
+
+
 
   
   async obtenerJugadorPorId(id: number): Promise<Jugador> {
@@ -260,8 +263,7 @@ async markDuplicates() {
 
    // Buscar jugador por RUT
    async buscarPorRut(rut: string): Promise<Jugador | null> {
-    const baseUrl = 'https://fenfurnacional.com'; 
-    console.log(baseUrl)
+    const baseUrl = 'https://fenfurnacional.com/uploads'; 
     // Buscar jugador con relaciones necesarias
     const jugador = await this.jugadoresRepository.findOne({
       where: { rut },
@@ -270,9 +272,10 @@ async markDuplicates() {
   
     // Si el jugador tiene una foto, construir la URL completa
     if (jugador && jugador.foto) {
-      jugador.foto = `${baseUrl}/${jugador.foto}`; // Construir la URL completa
+      // Reemplazar duplicaciones de "/players/"
+      jugador.foto = `${baseUrl}/${jugador.foto.replace(/.*players\//, 'players/')}`;
     }
-    console.log(jugador.foto)
+    console.log('foto',jugador.foto.replace(/^\/?\/+/, ''))
     return jugador;
   }
   
@@ -352,28 +355,33 @@ async markDuplicates() {
 
 
 
-  async createPlayer(createPlayerDto: CreateJugadorDto, imagePath?: string): Promise<Jugador> {
-    const { rut, clubId, nombre, paterno, materno, fecha_nacimiento, fecha_inscripcion, foto, recalificado } = createPlayerDto;
-  
-    console.log('createPlayerDto:', createPlayerDto); // Verifica los datos recibidos
+  async createPlayer(createJugadorDto: CreateJugadorDto, file?: Express.Multer.File): Promise<Jugador> {
+    const { rut, clubId, nombre, paterno, materno, fecha_nacimiento, fecha_inscripcion, recalificado } = createJugadorDto;
+
+    // Validar clubId como número entero
     const clubIdNumber = parseInt(clubId.toString(), 10);
     if (isNaN(clubIdNumber)) {
       throw new BadRequestException('El clubId es inválido o no es un número.');
     }
-  
+
     // Verificar si ya existe un jugador con el mismo RUT
     const jugadorExistente = await this.jugadoresRepository.findOne({ where: { rut } });
     if (jugadorExistente) {
       throw new ConflictException('El jugador con este RUT ya existe.');
     }
-  
-    // Buscar el club relacionado por id
-    console.log('Buscando club con id:', clubIdNumber); // Verificar clubIdNumber
+
+    // Buscar el club en el repositorio correcto (deberías tener `clubesRepository`)
     const club = await this.clubRepo.findOne({ where: { id: clubIdNumber } });
     if (!club) {
       throw new NotFoundException('El club especificado no existe.');
     }
-  
+
+    // Verificar si se subió una imagen y almacenar la ruta
+    let fotoUrl = null;
+    if (file) {
+      fotoUrl = `/uploads/${file.filename}`; // Ruta donde se guardó la imagen
+    }
+
     // Crear el nuevo jugador
     const nuevoJugador = this.jugadoresRepository.create({
       rut,
@@ -382,14 +390,14 @@ async markDuplicates() {
       materno,
       fecha_nacimiento,
       fecha_inscripcion,
-      foto: imagePath || foto, // Usar la foto del DTO o la ruta de la imagen cargada
+      foto: fotoUrl, // Guardar la URL de la imagen
       recalificado,
       club, // Asignar club relacionado
     });
-  
+
     // Guardar en la base de datos y devolver el jugador creado
     return this.jugadoresRepository.save(nuevoJugador);
-  }
+}
   
 
 

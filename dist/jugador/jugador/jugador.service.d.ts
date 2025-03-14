@@ -48,7 +48,7 @@ export declare class JugadoresService {
     createProductWithImage(id: number, foto: string): Promise<Jugador>;
     findPlayerById(id: number): Promise<Jugador>;
     findAllPlayers(): Promise<Jugador[]>;
-    createPlayer(createPlayerDto: CreateJugadorDto, imagePath?: string): Promise<Jugador>;
+    createPlayer(createJugadorDto: CreateJugadorDto, file?: Express.Multer.File): Promise<Jugador>;
     updatePlayer(id: number, updatePlayerDto: UpdateJugadorDto): Promise<Jugador>;
     updatePlay(id: number, updatePlayerDto: Partial<UpdateJugadorDto>, file?: Express.Multer.File): Promise<Jugador>;
     updatePlayerWithFoto(id: number, updateJugadorDto: Partial<UpdateJugadorDto>, file?: Express.Multer.File): Promise<Jugador>;
