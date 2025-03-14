@@ -278,7 +278,7 @@ async markDuplicates() {
     // Si el jugador tiene una foto, construir la URL completa
     if (jugador && jugador.foto) {
       // Reemplazar duplicaciones de "/players/"
-      jugador.foto = `${baseUrl}/${jugador.foto}`;
+      jugador.foto = `${baseUrl}/players/${jugador.foto.replace(/^players\//, '')}`;
     }
     console.log('foto',jugador)
     return jugador;
