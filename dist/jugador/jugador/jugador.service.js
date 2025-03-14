@@ -183,7 +183,7 @@ let JugadoresService = class JugadoresService {
         }
     }
     async buscarPorRut(rut) {
-        const baseUrl = 'https://fenfurnacional.com/uploads';
+        const baseUrl = 'https://fenfurnacional.com';
         const jugador = await this.jugadoresRepository.findOne({
             where: { rut },
             relations: ['club', 'club.asociacion', 'club.asociacion.region'],
