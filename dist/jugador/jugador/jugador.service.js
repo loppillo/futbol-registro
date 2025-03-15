@@ -189,7 +189,7 @@ let JugadoresService = class JugadoresService {
             relations: ['club', 'club.asociacion', 'club.asociacion.region'],
         });
         if (jugador && jugador.foto) {
-            jugador.foto = `${baseUrl}/players/${jugador.foto.replace(/^players\//, '')}`;
+            jugador.foto = `${baseUrl}/${jugador.foto.replace(/^players\//, '')}`;
         }
         console.log('foto', jugador);
         return jugador;
