@@ -15,7 +15,7 @@ import { JugadorResponseDto } from './dto/JugadorResponseDto.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Jugador } from './entities/jugador.entity';
 import { Repository } from 'typeorm';
-
+import * as sharp from 'sharp';
 import { Request } from 'express';
 import { AuthGuard } from 'src/auth/guard/auth.guard';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
@@ -118,6 +118,10 @@ export class JugadoresController {
     return this.jugadoresService.obtenerDuplicados(page, limit);
   }
 
+  @Get('duplicados/all')
+  async obtenerDuplicadosExcel(): Promise<any[]> {
+    return this.jugadoresService.obtenerDuplicadosSinPaginacion();
+  }
 
 
   @Post('creates')
@@ -158,7 +162,7 @@ export class JugadoresController {
     // Crear el jugador con los datos proporcionados
     const player = await this.jugadoresService.createPlayer(
       { ...playerData }, // DTO con los datos del jugador
-              // Ruta de la imagen
+      // Ruta de la imagen
     );
 
     // Confirmar la creación del jugador
@@ -332,78 +336,187 @@ export class JugadoresController {
 
 
   @Post('validar-rut-imagen')
-  @UseInterceptors(FileInterceptor('foto', { storage: memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }))
-  async validarRutImagen(@UploadedFile() foto: Express.Multer.File) {
-    if (!foto) {
-      throw new BadRequestException('Debe subir una imagen');
-    }
+@UseInterceptors(FileInterceptor('foto', { storage: memoryStorage() }))
+async validarRutImagen(@UploadedFile() foto: Express.Multer.File) {
+  if (!foto) {
+    throw new BadRequestException('Debe subir una imagen');
+  }
 
-    const imageBase64 = `data:image/jpeg;base64,${foto.buffer.toString('base64')}`;
+  // Procesamiento con sharp: escala, gris, mejora contraste
+  const imagenProcesada = await sharp(foto.buffer)
+    .resize({ width: 400, withoutEnlargement: true }) // escala max 400px ancho
+    .grayscale()
+    .normalize() // mejora contraste y brillo
+    .toBuffer();
 
-    const { data } = await Tesseract.recognize(imageBase64, 'spa');
-   
-    const rutEncontrado = this.extraerRut(data.text);
+  // Convertir imagen procesada a base64 para Tesseract
+  const imageBase64 = `data:image/jpeg;base64,${imagenProcesada.toString('base64')}`;
 
+  // OCR con Tesseract
+  const { data } = await Tesseract.recognize(imageBase64, 'spa');
 
-
-    this.validarRutChileno(rutEncontrado)
-    console.log(rutEncontrado)
-
-    const usuarioExistente = await this.jugadoresRepository.findOne({ where: { rut: rutEncontrado } });
+  // Extraer posibles RUTs
+  const posiblesRuts = this.extraerRuts(data.text);
+  for (const posibleRut of posiblesRuts) {
+  const rutFormateado = this.formatearRutConPuntos(posibleRut);
+  if (rutFormateado) {
+    const usuarioExistente = await this.jugadoresRepository.findOne({ where: { rut: rutFormateado } });
     if (!usuarioExistente) {
-      return { mensaje: 'RUT válido y no registrado', rut: rutEncontrado };
-
-    }else{
-      return { mensaje: 'RUT válido y registrado', rut: rutEncontrado };
+      return { mensaje: 'RUT válido y no registrado', rut: rutFormateado };
+    } else {
+      return { mensaje: 'RUT válido y registrado', rut: rutFormateado };
     }
+  }
+}
+  console.log('Posibles RUTs extraídos:', posiblesRuts);
 
-    
+
+
+  // Validar cada RUT extraído
 
 
 
+  return { mensaje: 'No se encontró un RUT válido en la imagen',posiblesRuts: posiblesRuts.map(r => this.formatearRut(r)) };
+}
+
+private extraerRuts(texto: string): string[] {
+  console.log('Texto extraído por OCR:', texto);
+
+  const rutsSet = new Set<string>();
+
+  // 1. Extraer RUNs desordenados con espacios y caracteres extra
+  const runExtraido = this.extraerRunDelTexto(texto);
+  if (runExtraido) {
+    rutsSet.add(this.normalizarRut(runExtraido));
   }
 
-  private extraerRut(texto: string): string | null {
-    console.log('Texto extraído por OCR:', texto); // Depuración
-
-    // Eliminar caracteres innecesarios dejando solo números, puntos, guiones y 'K'
-    texto = texto.replace(/[^0-9Kk.-]/g, '');
-
-    // Expresión regular mejorada para detectar RUT correctamente formateado
-    const regex = /(\d{1,2}\.\d{3}\.\d{3}-[0-9Kk])/g;
-    const match = regex.exec(texto);
-
-    if (match) {
-      console.log('RUT extraído:', match[1]);
-      return match[1].toUpperCase(); // Asegurar que 'k' sea 'K'
-    }
-
-    console.log('No se encontró RUT en el texto OCR');
-    return null;
+  // 2. Detectar con formato clásico 12.345.678-K
+  const formatoClasico = /\b\d{1,2}\.\d{3}\.\d{3}-[0-9Kk]\b/g;
+  const matchesClasico = texto.match(formatoClasico);
+  if (matchesClasico) {
+    matchesClasico.forEach(rut => rutsSet.add(this.normalizarRut(rut)));
   }
 
-
-
-  private validarRutChileno(rut: string): boolean {
-    rut = rut.replace(/\./g, '').replace(/-/g, '');
-    const cuerpo = rut.slice(0, -1);
-    const dv = rut.slice(-1).toUpperCase();
-
-    let suma = 0;
-    let multiplo = 2;
-    for (let i = cuerpo.length - 1; i >= 0; i--) {
-      suma += parseInt(cuerpo.charAt(i)) * multiplo;
-      multiplo = multiplo < 7 ? multiplo + 1 : 2;
-    }
-    const dvEsperado = 11 - (suma % 11);
-    const dvCalculado = dvEsperado === 11 ? '0' : dvEsperado === 10 ? 'K' : dvEsperado.toString();
-
-    return dv === dvCalculado;
+  // 3. Detectar sin puntos: 12345678-K
+  const formatoSimple = /\b\d{7,8}-[0-9Kk]\b/g;
+  const matchesSimple = texto.match(formatoSimple);
+  if (matchesSimple) {
+    matchesSimple.forEach(rut => rutsSet.add(this.normalizarRut(rut)));
   }
 
+  // 4. Detectar números como 12345678K (sin guion)
+  const formatoSinGuion = /\b\d{7,8}[0-9Kk]\b/g;
+  const matchesSinGuion = texto.match(formatoSinGuion);
+  if (matchesSinGuion) {
+    matchesSinGuion.forEach(r => {
+      const cuerpo = r.slice(0, -1);
+      const dv = r.slice(-1).toUpperCase();
+      rutsSet.add(this.normalizarRut(`${cuerpo}-${dv}`));
+    });
+  }
+
+  return Array.from(rutsSet);
+}
+
+// Extrae RUN con posibles espacios y signos sueltos
+ extraerRunDelTexto(texto: string): string | null {
+  const regex = /(\d{1,2}[\.\s]?\d{3}[\.\s]?\d{3})[\s\-]?(\d|[Kk])/g;
+  let match;
+  while ((match = regex.exec(texto)) !== null) {
+    let [ , parteNumerica, dv ] = match;
+    const cuerpo = parteNumerica.replace(/[\.\s]/g, '');
+    dv = dv.toUpperCase();
+    return `${cuerpo}-${dv}`;
+  }
+  return null;
+}
+
+// Normaliza el RUT: elimina puntos, pone guion y dv en mayúscula
+private normalizarRut(rut: string): string {
+  rut = rut.replace(/\./g, '').replace(/-/g, '');
+  const cuerpo = rut.slice(0, -1);
+  const dv = rut.slice(-1).toUpperCase();
+  return `${cuerpo}-${dv}`;
+}
 
 
 
+
+private validarRutChileno(rut: string): string | false {
+  const rutLimpio = rut.replace(/\./g, '').replace(/-/g, '').toUpperCase();
+  const cuerpo = rutLimpio.slice(0, -1);
+  const dv = rutLimpio.slice(-1);
+
+  let suma = 0;
+  let multiplo = 2;
+  for (let i = cuerpo.length - 1; i >= 0; i--) {
+    suma += parseInt(cuerpo.charAt(i)) * multiplo;
+    multiplo = multiplo < 7 ? multiplo + 1 : 2;
+  }
+  const dvEsperado = 11 - (suma % 11);
+  const dvCalculado = dvEsperado === 11 ? '0' : dvEsperado === 10 ? 'K' : dvEsperado.toString();
+
+  if (dv === dvCalculado) {
+    // Si es válido, devuelve el RUT formateado
+    return this.formatearRut(cuerpo);
+  } else {
+    return false;
+  }
+}
+
+private formatearRut(rutNormalizado: string): string {
+  if (!rutNormalizado.includes('-')) {
+    console.warn('RUT malformado recibido en formatearRut:', rutNormalizado);
+    return rutNormalizado; // O lanza error si prefieres
+  }
+
+  const [cuerpo, dv] = rutNormalizado.split('-');
+
+  if (!cuerpo || !dv) {
+    console.warn('Cuerpo o dígito verificador inválido:', rutNormalizado);
+    return rutNormalizado;
+  }
+
+  let cuerpoFormateado = '';
+  let contador = 0;
+
+  for (let i = cuerpo.length - 1; i >= 0; i--) {
+    cuerpoFormateado = cuerpo.charAt(i) + cuerpoFormateado;
+    contador++;
+    if (contador % 3 === 0 && i !== 0) {
+      cuerpoFormateado = '.' + cuerpoFormateado;
+    }
+  }
+
+  return `${cuerpoFormateado}-${dv.toUpperCase()}`;
+}
+
+
+private formatearRutConPuntos(rut: string): string {
+  // Elimina puntos y guion si existen
+  rut = rut.replace(/\./g, '').replace(/-/g, '');
+
+  if (rut.length < 2) {
+    console.warn('RUT demasiado corto:', rut);
+    return rut; // Devuelve el original si es inválido
+  }
+
+  const cuerpo = rut.slice(0, -1);
+  const dv = rut.slice(-1).toUpperCase();
+
+  // Agrega los puntos desde el final hacia el inicio
+  let cuerpoFormateado = '';
+  let contador = 0;
+  for (let i = cuerpo.length - 1; i >= 0; i--) {
+    cuerpoFormateado = cuerpo.charAt(i) + cuerpoFormateado;
+    contador++;
+    if (contador % 3 === 0 && i !== 0) {
+      cuerpoFormateado = '.' + cuerpoFormateado;
+    }
+  }
+
+  return `${cuerpoFormateado}-${dv}`;
+}
 
   @Get('buscar/:rut')
   async buscarPorRut(@Param('rut') rut: string) {
@@ -491,7 +604,7 @@ export class JugadoresController {
 
       // Buscar el archivo con el ID del jugador
       const playerImage = files.find(file => file.includes(`player-${id}-`));
-      
+
       if (playerImage) {
         console.log('Imagen encontrada:', playerImage);
         const filePath = join(directoryPath, playerImage);

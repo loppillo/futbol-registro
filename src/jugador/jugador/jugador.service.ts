@@ -857,6 +857,49 @@ async volverPlay(id: number): Promise<Jugador> {
   return this.jugadoresRepository.save(playerToMark);
 }
 
+async obtenerDuplicadosSinPaginacion() {
+  const jugadores = await this.jugadoresRepository.find({
+    where: { duplicado: true },
+    relations: [
+      'club',
+      'club.asociacion',
+      'club.asociacion.region',
+    ],
+  });
+
+  const formattedJugadores = jugadores.map((jugador) => ({
+    id: jugador.id,
+    nombre: jugador.nombre,
+    paterno: jugador.paterno,
+    materno: jugador.materno,
+    rut: jugador.rut,
+    fecha_nacimiento: jugador.fecha_nacimiento,
+    fecha_inscripcion: jugador.fecha_inscripcion,
+    club: jugador.club
+      ? {
+          id: jugador.club.id,
+          name: jugador.club.name,
+          asociacion: jugador.club.asociacion
+            ? {
+                id: jugador.club.asociacion.id,
+                name: jugador.club.asociacion.name,
+                region: jugador.club.asociacion.region
+                  ? {
+                      id: jugador.club.asociacion.region.id,
+                      name: jugador.club.asociacion.region.name,
+                    }
+                  : null,
+              }
+            : null,
+        }
+      : null,
+    sancionado: jugador.sancionado,
+    duplicado: jugador.duplicado,
+    recalificado: jugador.recalificado
+  }));
+
+  return formattedJugadores;
+}
 
 
 }

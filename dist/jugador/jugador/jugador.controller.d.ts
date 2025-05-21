@@ -44,6 +44,7 @@ export declare class JugadoresController {
         currentPage: number;
         totalPages: number;
     }>;
+    obtenerDuplicadosExcel(): Promise<any[]>;
     createPlayer(file: Express.Multer.File, playerData: CreateJugadorDto): Promise<{
         message: string;
         player: Jugador;
@@ -87,9 +88,18 @@ export declare class JugadoresController {
     validarRutImagen(foto: Express.Multer.File): Promise<{
         mensaje: string;
         rut: string;
+        posiblesRuts?: undefined;
+    } | {
+        mensaje: string;
+        posiblesRuts: string[];
+        rut?: undefined;
     }>;
-    private extraerRut;
+    private extraerRuts;
+    extraerRunDelTexto(texto: string): string | null;
+    private normalizarRut;
     private validarRutChileno;
+    private formatearRut;
+    private formatearRutConPuntos;
     buscarPorRut(rut: string): Promise<Jugador>;
     buscarPorClub(club_deportivo: string, req: any): Promise<Jugador[]>;
     private convertirFechaExcel;

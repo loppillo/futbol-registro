@@ -28,6 +28,7 @@ const PaginationDto_dto_1 = require("./dto/PaginationDto.dto");
 const typeorm_1 = require("@nestjs/typeorm");
 const jugador_entity_1 = require("./entities/jugador.entity");
 const typeorm_2 = require("typeorm");
+const sharp = require("sharp");
 const auth_guard_1 = require("../../auth/guard/auth.guard");
 const jwt_strategy_1 = require("../../auth/jwt.strategy");
 const Tesseract = require('tesseract.js');
@@ -60,6 +61,9 @@ let JugadoresController = class JugadoresController {
         const limitNumber = isNaN(Number(limit)) ? 10 : Number(limit);
         const skip = (pageNumber - 1) * limitNumber;
         return this.jugadoresService.obtenerDuplicados(page, limit);
+    }
+    async obtenerDuplicadosExcel() {
+        return this.jugadoresService.obtenerDuplicadosSinPaginacion();
     }
     async createPlayer(file, playerData) {
         if (!file) {
@@ -134,35 +138,78 @@ let JugadoresController = class JugadoresController {
         if (!foto) {
             throw new common_1.BadRequestException('Debe subir una imagen');
         }
-        const imageBase64 = `data:image/jpeg;base64,${foto.buffer.toString('base64')}`;
+        const imagenProcesada = await sharp(foto.buffer)
+            .resize({ width: 400, withoutEnlargement: true })
+            .grayscale()
+            .normalize()
+            .toBuffer();
+        const imageBase64 = `data:image/jpeg;base64,${imagenProcesada.toString('base64')}`;
         const { data } = await Tesseract.recognize(imageBase64, 'spa');
-        const rutEncontrado = this.extraerRut(data.text);
-        this.validarRutChileno(rutEncontrado);
-        console.log(rutEncontrado);
-        const usuarioExistente = await this.jugadoresRepository.findOne({ where: { rut: rutEncontrado } });
-        if (!usuarioExistente) {
-            return { mensaje: 'RUT válido y no registrado', rut: rutEncontrado };
+        const posiblesRuts = this.extraerRuts(data.text);
+        for (const posibleRut of posiblesRuts) {
+            const rutFormateado = this.formatearRutConPuntos(posibleRut);
+            if (rutFormateado) {
+                const usuarioExistente = await this.jugadoresRepository.findOne({ where: { rut: rutFormateado } });
+                if (!usuarioExistente) {
+                    return { mensaje: 'RUT válido y no registrado', rut: rutFormateado };
+                }
+                else {
+                    return { mensaje: 'RUT válido y registrado', rut: rutFormateado };
+                }
+            }
         }
-        else {
-            return { mensaje: 'RUT válido y registrado', rut: rutEncontrado };
-        }
+        console.log('Posibles RUTs extraídos:', posiblesRuts);
+        return { mensaje: 'No se encontró un RUT válido en la imagen', posiblesRuts: posiblesRuts.map(r => this.formatearRut(r)) };
     }
-    extraerRut(texto) {
+    extraerRuts(texto) {
         console.log('Texto extraído por OCR:', texto);
-        texto = texto.replace(/[^0-9Kk.-]/g, '');
-        const regex = /(\d{1,2}\.\d{3}\.\d{3}-[0-9Kk])/g;
-        const match = regex.exec(texto);
-        if (match) {
-            console.log('RUT extraído:', match[1]);
-            return match[1].toUpperCase();
+        const rutsSet = new Set();
+        const runExtraido = this.extraerRunDelTexto(texto);
+        if (runExtraido) {
+            rutsSet.add(this.normalizarRut(runExtraido));
         }
-        console.log('No se encontró RUT en el texto OCR');
+        const formatoClasico = /\b\d{1,2}\.\d{3}\.\d{3}-[0-9Kk]\b/g;
+        const matchesClasico = texto.match(formatoClasico);
+        if (matchesClasico) {
+            matchesClasico.forEach(rut => rutsSet.add(this.normalizarRut(rut)));
+        }
+        const formatoSimple = /\b\d{7,8}-[0-9Kk]\b/g;
+        const matchesSimple = texto.match(formatoSimple);
+        if (matchesSimple) {
+            matchesSimple.forEach(rut => rutsSet.add(this.normalizarRut(rut)));
+        }
+        const formatoSinGuion = /\b\d{7,8}[0-9Kk]\b/g;
+        const matchesSinGuion = texto.match(formatoSinGuion);
+        if (matchesSinGuion) {
+            matchesSinGuion.forEach(r => {
+                const cuerpo = r.slice(0, -1);
+                const dv = r.slice(-1).toUpperCase();
+                rutsSet.add(this.normalizarRut(`${cuerpo}-${dv}`));
+            });
+        }
+        return Array.from(rutsSet);
+    }
+    extraerRunDelTexto(texto) {
+        const regex = /(\d{1,2}[\.\s]?\d{3}[\.\s]?\d{3})[\s\-]?(\d|[Kk])/g;
+        let match;
+        while ((match = regex.exec(texto)) !== null) {
+            let [, parteNumerica, dv] = match;
+            const cuerpo = parteNumerica.replace(/[\.\s]/g, '');
+            dv = dv.toUpperCase();
+            return `${cuerpo}-${dv}`;
+        }
         return null;
     }
-    validarRutChileno(rut) {
+    normalizarRut(rut) {
         rut = rut.replace(/\./g, '').replace(/-/g, '');
         const cuerpo = rut.slice(0, -1);
         const dv = rut.slice(-1).toUpperCase();
+        return `${cuerpo}-${dv}`;
+    }
+    validarRutChileno(rut) {
+        const rutLimpio = rut.replace(/\./g, '').replace(/-/g, '').toUpperCase();
+        const cuerpo = rutLimpio.slice(0, -1);
+        const dv = rutLimpio.slice(-1);
         let suma = 0;
         let multiplo = 2;
         for (let i = cuerpo.length - 1; i >= 0; i--) {
@@ -171,7 +218,52 @@ let JugadoresController = class JugadoresController {
         }
         const dvEsperado = 11 - (suma % 11);
         const dvCalculado = dvEsperado === 11 ? '0' : dvEsperado === 10 ? 'K' : dvEsperado.toString();
-        return dv === dvCalculado;
+        if (dv === dvCalculado) {
+            return this.formatearRut(cuerpo);
+        }
+        else {
+            return false;
+        }
+    }
+    formatearRut(rutNormalizado) {
+        if (!rutNormalizado.includes('-')) {
+            console.warn('RUT malformado recibido en formatearRut:', rutNormalizado);
+            return rutNormalizado;
+        }
+        const [cuerpo, dv] = rutNormalizado.split('-');
+        if (!cuerpo || !dv) {
+            console.warn('Cuerpo o dígito verificador inválido:', rutNormalizado);
+            return rutNormalizado;
+        }
+        let cuerpoFormateado = '';
+        let contador = 0;
+        for (let i = cuerpo.length - 1; i >= 0; i--) {
+            cuerpoFormateado = cuerpo.charAt(i) + cuerpoFormateado;
+            contador++;
+            if (contador % 3 === 0 && i !== 0) {
+                cuerpoFormateado = '.' + cuerpoFormateado;
+            }
+        }
+        return `${cuerpoFormateado}-${dv.toUpperCase()}`;
+    }
+    formatearRutConPuntos(rut) {
+        rut = rut.replace(/\./g, '').replace(/-/g, '');
+        if (rut.length < 2) {
+            console.warn('RUT demasiado corto:', rut);
+            return rut;
+        }
+        const cuerpo = rut.slice(0, -1);
+        const dv = rut.slice(-1).toUpperCase();
+        let cuerpoFormateado = '';
+        let contador = 0;
+        for (let i = cuerpo.length - 1; i >= 0; i--) {
+            cuerpoFormateado = cuerpo.charAt(i) + cuerpoFormateado;
+            contador++;
+            if (contador % 3 === 0 && i !== 0) {
+                cuerpoFormateado = '.' + cuerpoFormateado;
+            }
+        }
+        return `${cuerpoFormateado}-${dv}`;
     }
     async buscarPorRut(rut) {
         const jugador = await this.jugadoresService.buscarPorRut(rut);
@@ -292,6 +384,12 @@ __decorate([
     __metadata("design:paramtypes", [Number, Number]),
     __metadata("design:returntype", Promise)
 ], JugadoresController.prototype, "obtenerDuplicados", null);
+__decorate([
+    (0, common_1.Get)('duplicados/all'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], JugadoresController.prototype, "obtenerDuplicadosExcel", null);
 __decorate([
     (0, common_1.Post)('creates'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('foto', {
@@ -417,7 +515,7 @@ __decorate([
 ], JugadoresController.prototype, "importarJugadores", null);
 __decorate([
     (0, common_1.Post)('validar-rut-imagen'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('foto', { storage: (0, multer_1.memoryStorage)(), limits: { fileSize: 5 * 1024 * 1024 } })),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('foto', { storage: (0, multer_1.memoryStorage)() })),
     __param(0, (0, common_1.UploadedFile)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),

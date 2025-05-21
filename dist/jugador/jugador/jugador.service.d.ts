@@ -94,4 +94,28 @@ export declare class JugadoresService {
     updateJugadorPhoto(id: number, filePath: string): Promise<void>;
     getPlayerPhoto(id: number): void;
     volverPlay(id: number): Promise<Jugador>;
+    obtenerDuplicadosSinPaginacion(): Promise<{
+        id: number;
+        nombre: string;
+        paterno: string;
+        materno: string;
+        rut: string;
+        fecha_nacimiento: Date;
+        fecha_inscripcion: Date;
+        club: {
+            id: number;
+            name: string;
+            asociacion: {
+                id: number;
+                name: string;
+                region: {
+                    id: number;
+                    name: string;
+                };
+            };
+        };
+        sancionado: boolean;
+        duplicado: boolean;
+        recalificado: boolean;
+    }[]>;
 }
