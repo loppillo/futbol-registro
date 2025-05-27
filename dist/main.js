@@ -10,7 +10,7 @@ async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.setGlobalPrefix("api/v1");
     app.enableCors({
-        origin: ['https://fenfurnacional.cl', 'http://localhost:4000', 'https://fenfurnacional.com', 'https://www.fenfurnacional.cl', 'http://localhost:4200'],
+        origin: ['https://fenfurnacional.cl', 'http://localhost:4000', 'https://fenfurnacional.com', 'https://www.fenfurnacional.cl', 'http://localhost:4200', 'http://www.fenfurnacional.cl'],
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
         allowedHeaders: 'Content-Type,Authorization',
         credentials: true,
