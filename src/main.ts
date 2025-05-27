@@ -14,7 +14,7 @@ const logger = new Logger('Bootstrap');
   
   app.setGlobalPrefix("api/v1");
    app.enableCors({
-    origin: ['https://fenfurnacional.cl','http://localhost:4000', 'https://fenfurnacional.com','https://www.fenfurnacional.cl','http://localhost:4200'], // Dominios permitidos
+    origin: ['https://fenfurnacional.cl','http://localhost:4000', 'https://fenfurnacional.com','https://www.fenfurnacional.cl','http://localhost:4200','http://www.fenfurnacional.cl'], // Dominios permitidos
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Métodos HTTP permitidos
     allowedHeaders: 'Content-Type,Authorization', // Cabeceras permitidas
     credentials: true, // Permite que se envíen cookies de sesión
