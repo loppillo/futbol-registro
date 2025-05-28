@@ -313,7 +313,28 @@ let JugadoresService = class JugadoresService {
             }
             playerToUpdate.foto = `players/${file.filename}`;
         }
-        Object.assign(playerToUpdate, updateJugadorDto);
+        if (updateJugadorDto.sancionado !== undefined) {
+            if (typeof updateJugadorDto.sancionado === 'string') {
+                playerToUpdate.sancionado = updateJugadorDto.sancionado.toLowerCase() === 'true';
+            }
+            else {
+                playerToUpdate.sancionado = Boolean(updateJugadorDto.sancionado);
+            }
+        }
+        if (updateJugadorDto.recalificado !== undefined) {
+            if (typeof updateJugadorDto.recalificado === 'string') {
+                playerToUpdate.recalificado = updateJugadorDto.recalificado.toLowerCase() === 'true';
+            }
+            else {
+                playerToUpdate.recalificado = Boolean(updateJugadorDto.recalificado);
+            }
+        }
+        Object.assign(playerToUpdate, {
+            ...updateJugadorDto,
+            sancionado: playerToUpdate.sancionado,
+            recalificado: playerToUpdate.recalificado,
+        });
+        console.log('playerToUpdate', playerToUpdate.recalificado);
         await this.jugadoresRepository.save(playerToUpdate);
         return await this.jugadoresRepository.findOne({
             where: { id },

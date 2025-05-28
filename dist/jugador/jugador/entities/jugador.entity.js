@@ -48,11 +48,11 @@ __decorate([
     __metadata("design:type", String)
 ], Jugador.prototype, "foto", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ default: false }),
+    (0, typeorm_1.Column)({ type: 'boolean', default: false }),
     __metadata("design:type", Boolean)
 ], Jugador.prototype, "sancionado", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ default: false }),
+    (0, typeorm_1.Column)({ type: 'boolean', default: false }),
     __metadata("design:type", Boolean)
 ], Jugador.prototype, "recalificado", void 0);
 __decorate([

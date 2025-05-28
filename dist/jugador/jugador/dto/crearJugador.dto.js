@@ -10,6 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CrearJugadorDto = void 0;
+const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 class CrearJugadorDto {
 }
@@ -50,13 +51,32 @@ __decorate([
     __metadata("design:type", String)
 ], CrearJugadorDto.prototype, "foto", void 0);
 __decorate([
+    (0, class_transformer_1.Transform)(({ value }) => {
+        if (typeof value === 'string') {
+            const val = value.toLowerCase();
+            if (val === 'true')
+                return true;
+            if (val === 'false')
+                return false;
+        }
+        return Boolean(value);
+    }),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], CrearJugadorDto.prototype, "sancionado", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => {
+        if (typeof value === 'string') {
+            const val = value.toLowerCase();
+            if (val === 'true')
+                return true;
+            if (val === 'false')
+                return false;
+        }
+        return Boolean(value);
+    }),
     (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], CrearJugadorDto.prototype, "recalificado", void 0);
 __decorate([

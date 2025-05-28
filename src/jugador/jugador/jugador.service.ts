@@ -432,8 +432,8 @@ async updatePlay(
   updateJugadorDto: Partial<UpdateJugadorDto>, 
   file?: Express.Multer.File
 ): Promise<Jugador> {
-   // 🔹 Buscar al jugador
-   const playerToUpdate = await this.jugadoresRepository.findOne({
+  // 🔹 Buscar al jugador
+  const playerToUpdate = await this.jugadoresRepository.findOne({
     where: { id },
     relations: ['club'],
   });
@@ -472,11 +472,30 @@ async updatePlay(
     playerToUpdate.foto = `players/${file.filename}`;
   }
 
-  // 🔹 Aplicar los cambios al jugador
-  Object.assign(playerToUpdate, updateJugadorDto);
+if (updateJugadorDto.sancionado !== undefined) {
+  if (typeof updateJugadorDto.sancionado === 'string') {
+    playerToUpdate.sancionado = (updateJugadorDto.sancionado as string).toLowerCase() === 'true';
+  } else {
+    playerToUpdate.sancionado = Boolean(updateJugadorDto.sancionado);
+  }
+}
 
+if (updateJugadorDto.recalificado !== undefined) {
+  if (typeof updateJugadorDto.recalificado === 'string') {
+    playerToUpdate.recalificado = (updateJugadorDto.recalificado as string).toLowerCase() === 'true';
+  } else {
+    playerToUpdate.recalificado = Boolean(updateJugadorDto.recalificado);
+  }
+}
+
+Object.assign(playerToUpdate, {
+  ...updateJugadorDto,
+  sancionado: playerToUpdate.sancionado,
+  recalificado: playerToUpdate.recalificado,
+});
+console.log('playerToUpdate', playerToUpdate.recalificado);
   // 🔹 Guardar los cambios en la base de datos
-  await this.jugadoresRepository.save(playerToUpdate);
+ await this.jugadoresRepository.save(playerToUpdate);
 
   // 🔹 Recargar el jugador actualizado con relaciones
   return await this.jugadoresRepository.findOne({
@@ -484,6 +503,8 @@ async updatePlay(
     relations: ['club'],
   });
 }
+
+
 
 
 

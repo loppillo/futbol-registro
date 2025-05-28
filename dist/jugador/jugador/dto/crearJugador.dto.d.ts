@@ -7,7 +7,7 @@ export declare class CrearJugadorDto {
     fecha_inscripcion?: Date;
     foto?: string;
     sancionado: boolean;
-    recalificado: boolean;
+    recalificado?: boolean;
     duplicado?: number;
     clubId: number;
 }

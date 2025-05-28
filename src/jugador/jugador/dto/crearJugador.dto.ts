@@ -1,3 +1,4 @@
+import { Transform, TransformFnParams } from "class-transformer";
 import { IsBoolean, IsDateString, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
 export class CrearJugadorDto {
 
@@ -29,13 +30,29 @@ export class CrearJugadorDto {
   @IsString()
   foto?: string;
 
+
+@Transform(({ value }: TransformFnParams) => {
+  if (typeof value === 'string') {
+    const val = value.toLowerCase();
+    if (val === 'true') return true;
+    if (val === 'false') return false;
+  }
+  return Boolean(value);
+})
   @IsOptional()
-  @IsBoolean()
   sancionado:boolean;
 
-  @IsOptional()
+  @Transform(({ value }: TransformFnParams) => {
+  if (typeof value === 'string') {
+    const val = value.toLowerCase();
+    if (val === 'true') return true;
+    if (val === 'false') return false;
+  }
+  return Boolean(value);
+})
   @IsBoolean()
-  recalificado:boolean;
+  @IsOptional()
+  recalificado?: boolean;
 
   @IsOptional()
   duplicado?: number;

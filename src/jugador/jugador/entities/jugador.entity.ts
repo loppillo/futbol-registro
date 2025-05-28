@@ -29,11 +29,9 @@ export class Jugador {
   @Column({ nullable: true })
   foto: string;
 
-    // Campo para marcar duplicados
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false })
   sancionado: boolean;
-
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false })
   recalificado: boolean;
 
   // Campo para marcar duplicados

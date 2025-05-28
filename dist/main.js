@@ -5,8 +5,9 @@ const app_module_1 = require("./app.module");
 const express = require("express");
 const path_1 = require("path");
 const common_1 = require("@nestjs/common");
+const common_2 = require("@nestjs/common");
 async function bootstrap() {
-    const logger = new common_1.Logger('Bootstrap');
+    const logger = new common_2.Logger('Bootstrap');
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.setGlobalPrefix("api/v1");
     app.enableCors({
@@ -15,6 +16,11 @@ async function bootstrap() {
         allowedHeaders: 'Content-Type,Authorization',
         credentials: true,
     });
+    app.useGlobalPipes(new common_1.ValidationPipe({
+        transform: true,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+    }));
     app.use('/uploads', express.static((0, path_1.join)(__dirname, '..', 'uploads')));
     await app.listen(4000);
 }

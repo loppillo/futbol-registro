@@ -20,6 +20,11 @@ const logger = new Logger('Bootstrap');
     credentials: true, // Permite que se envíen cookies de sesión
   });
   
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,       // ¡Muy importante para transformar los datos!
+    whitelist: true,       // opcional, para eliminar propiedades no declaradas
+    forbidNonWhitelisted: true,
+  }));
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
 
   
