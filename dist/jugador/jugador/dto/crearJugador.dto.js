@@ -42,8 +42,8 @@ __decorate([
 ], CrearJugadorDto.prototype, "fecha_nacimiento", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)({ strict: true }),
-    __metadata("design:type", Date)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CrearJugadorDto.prototype, "fecha_inscripcion", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

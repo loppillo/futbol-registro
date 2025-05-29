@@ -1,5 +1,5 @@
 import { Transform, TransformFnParams } from "class-transformer";
-import { IsBoolean, IsDateString, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsDate, IsDateString, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
 export class CrearJugadorDto {
 
   @IsString()
@@ -22,34 +22,35 @@ export class CrearJugadorDto {
   @IsDateString({ strict: true })
   fecha_nacimiento?: Date;
 
+
   @IsOptional()
-  @IsDateString({ strict: true })
-  fecha_inscripcion?: Date;
+   @IsString()
+  fecha_inscripcion?: string;
 
   @IsOptional()
   @IsString()
   foto?: string;
 
 
-@Transform(({ value }: TransformFnParams) => {
-  if (typeof value === 'string') {
-    const val = value.toLowerCase();
-    if (val === 'true') return true;
-    if (val === 'false') return false;
-  }
-  return Boolean(value);
-})
+  @Transform(({ value }: TransformFnParams) => {
+    if (typeof value === 'string') {
+      const val = value.toLowerCase();
+      if (val === 'true') return true;
+      if (val === 'false') return false;
+    }
+    return Boolean(value);
+  })
   @IsOptional()
-  sancionado:boolean;
+  sancionado: boolean;
 
   @Transform(({ value }: TransformFnParams) => {
-  if (typeof value === 'string') {
-    const val = value.toLowerCase();
-    if (val === 'true') return true;
-    if (val === 'false') return false;
-  }
-  return Boolean(value);
-})
+    if (typeof value === 'string') {
+      const val = value.toLowerCase();
+      if (val === 'true') return true;
+      if (val === 'false') return false;
+    }
+    return Boolean(value);
+  })
   @IsBoolean()
   @IsOptional()
   recalificado?: boolean;

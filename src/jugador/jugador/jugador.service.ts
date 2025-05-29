@@ -65,9 +65,10 @@ export class JugadoresService {
     let fotoPath = null;
     if (foto) {
       // Si se recibe una foto, crear el path correcto
-      fotoPath = `uploads/players/${foto}`;
+      fotoPath = `uploads${foto}`;
     }
   
+    console.log('fotoPath', fotoPath);
     // Crear el nuevo jugador con la ruta de la foto
     const nuevoJugador = this.jugadoresRepository.create({
       rut,
@@ -446,7 +447,7 @@ async updatePlay(
     updateJugadorDto.fecha_nacimiento = new Date(updateJugadorDto.fecha_nacimiento);
   }
   if (updateJugadorDto.fecha_inscripcion) {
-    updateJugadorDto.fecha_inscripcion = new Date(updateJugadorDto.fecha_inscripcion);
+    updateJugadorDto.fecha_inscripcion = updateJugadorDto.fecha_inscripcion;
   }
 
   // 🔹 Verificar y actualizar club si es necesario

@@ -4,7 +4,7 @@ export declare class CrearJugadorDto {
     paterno: string;
     materno: string;
     fecha_nacimiento?: Date;
-    fecha_inscripcion?: Date;
+    fecha_inscripcion?: string;
     foto?: string;
     sancionado: boolean;
     recalificado?: boolean;

@@ -51,8 +51,9 @@ let JugadoresService = class JugadoresService {
         }
         let fotoPath = null;
         if (foto) {
-            fotoPath = `uploads/players/${foto}`;
+            fotoPath = `uploads${foto}`;
         }
+        console.log('fotoPath', fotoPath);
         const nuevoJugador = this.jugadoresRepository.create({
             rut,
             nombre,
@@ -295,7 +296,7 @@ let JugadoresService = class JugadoresService {
             updateJugadorDto.fecha_nacimiento = new Date(updateJugadorDto.fecha_nacimiento);
         }
         if (updateJugadorDto.fecha_inscripcion) {
-            updateJugadorDto.fecha_inscripcion = new Date(updateJugadorDto.fecha_inscripcion);
+            updateJugadorDto.fecha_inscripcion = updateJugadorDto.fecha_inscripcion;
         }
         if (updateJugadorDto.clubId && updateJugadorDto.clubId !== playerToUpdate.club.id) {
             const club = await this.clubRepo.findOne({ where: { id: updateJugadorDto.clubId } });
