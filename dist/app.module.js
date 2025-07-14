@@ -35,7 +35,7 @@ exports.AppModule = AppModule = __decorate([
                 port: 3306,
                 username: 'fenfurna_lopo',
                 password: 'b&jTYe?&t^S!',
-                database: 'fenfurna_futbol_db',
+                database: 'fenfurna_futball',
                 entities: [jugador_entity_1.Jugador, usuario_entity_1.User, club_entity_1.Club, asociacion_entity_1.Asociacion, region_entity_1.Region],
                 synchronize: true,
                 connectTimeout: 10000,
