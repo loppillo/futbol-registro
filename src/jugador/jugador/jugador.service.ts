@@ -613,37 +613,50 @@ async importFromExcel(filePath: string) {
   };
 
   const fechaDefault = '2023-09-20';
-  const convertirCampoFecha = (valor: any) => 
-    typeof valor === 'number' 
-      ? convertirFechaExcel(valor) 
+  const convertirCampoFecha = (valor: any) =>
+    typeof valor === 'number'
+      ? convertirFechaExcel(valor)
       : valor || fechaDefault;
+
+  const cleanField = (value: any): string | null => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed === '' ? null : trimmed;
+    }
+    return value ?? null;
+  };
 
   for (const [index, row] of data.entries()) {
     try {
-      const requiredFields = ['paterno', 'materno', 'nombre', 'rut', 'club_deportivo', 'fecha_nacimiento', 'fecha_inscripcion'];
-      const missingFields = requiredFields.filter(field => !row[field]);
+      const fila = index + 1;
 
-      if (missingFields.length) {
-        console.warn(`Fila ${index + 1}: Faltan campos esenciales: ${missingFields.join(', ')}`);
+      const nombre = cleanField(row['nombre']);
+      const rut = cleanField(row['rut']);
+      const paterno = cleanField(row['paterno']);
+      const materno = cleanField(row['materno']);
+
+      const requiredValues = [nombre, rut, paterno, materno, row['club_deportivo'], row['fecha_nacimiento'], row['fecha_inscripcion']];
+      if (requiredValues.some(v => v === null || v === undefined || v === '')) {
+        console.warn(`Fila ${fila}: Faltan campos esenciales`);
         continue;
       }
 
-      console.log(`Procesando fila ${index + 1}: ${JSON.stringify(row)}`);
+      console.log(`Procesando fila ${fila}: ${JSON.stringify(row)}`);
 
       const fechaNacimientoValida = typeof row['fecha_nacimiento'] === 'number'
         ? convertirFechaExcel(row['fecha_nacimiento'])
-        : row['fecha_nacimiento'];
+        : new Date(row['fecha_nacimiento']);
 
-      if (isNaN(new Date(fechaNacimientoValida).getTime())) {
-        console.warn(`Fila ${index + 1}: Fecha de nacimiento inválida. Fecha de nacimiento: ${row['fecha_nacimiento']}`);
+      if (isNaN(fechaNacimientoValida.getTime())) {
+        console.warn(`Fila ${fila}: Fecha de nacimiento inválida: ${row['fecha_nacimiento']}`);
         continue;
       }
 
       let fechaInscripcion: Date;
       try {
-        fechaInscripcion = convertirCampoFecha(row['fecha_inscripcion']);
+        fechaInscripcion = convertirCampoFecha(row['fecha_inscripcion']) as Date;
       } catch (error) {
-        console.error(`Fila ${index + 1}: Error procesando fecha de inscripción - ${error.message}`);
+        console.error(`Fila ${fila}: Error procesando fecha de inscripción - ${error.message}`);
         continue;
       }
 
@@ -653,40 +666,32 @@ async importFromExcel(filePath: string) {
         this.clubRepo.findOne({ where: { name: row['club_deportivo'] } }),
       ]);
 
-      if (!region) {
-        console.warn(`Fila ${index + 1}: Región no encontrada: ${row['region']}`);
-      }
+      if (!region) console.warn(`Fila ${fila}: Región no encontrada: ${row['region']}`);
+      if (!asociacion) console.warn(`Fila ${fila}: Asociación no encontrada: ${row['asociacion']}`);
+      if (!club) console.warn(`Fila ${fila}: Club no encontrado: ${row['club_deportivo']}`);
 
-      if (!asociacion) {
-        console.warn(`Fila ${index + 1}: Asociación no encontrada: ${row['asociacion']}`);
-      }
-
-      if (!club) {
-        console.warn(`Fila ${index + 1}: Club no encontrado: ${row['club_deportivo']}`);
-      }
-
-      const jugadorDuplicado = await this.jugadoresRepository.findOne({ 
-        where: { 
-          rut: row['rut'], 
-          nombre: row['nombre'], 
-          paterno: row['paterno'], 
-          materno: row['materno'], 
-          club: club ? { id: club.id } : null 
-        } 
+      const jugadorDuplicado = await this.jugadoresRepository.findOne({
+        where: {
+          rut,
+          nombre,
+          paterno,
+          materno,
+          club: club ? { id: club.id } : null
+        }
       });
 
       if (jugadorDuplicado) {
-        console.warn(`Fila ${index + 1}: Jugador duplicado encontrado: ${row['nombre']} (${row['rut']})`);
+        console.warn(`Fila ${fila}: Jugador duplicado: ${nombre} (${rut})`);
         jugadorDuplicado.duplicado = true;
         await this.jugadoresRepository.save(jugadorDuplicado);
         continue;
       }
 
       const player = this.jugadoresRepository.create({
-        paterno: row['paterno'],
-        materno: row['materno'],
-        nombre: row['nombre'],
-        rut: row['rut'],
+        paterno,
+        materno,
+        nombre,
+        rut,
         fecha_nacimiento: fechaNacimientoValida,
         fecha_inscripcion: fechaInscripcion,
         foto: null,
@@ -705,6 +710,7 @@ async importFromExcel(filePath: string) {
 
   return { message: 'Importación completada exitosamente' };
 }
+
 
 
 
