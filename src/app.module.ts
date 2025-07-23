@@ -26,7 +26,7 @@ import { ConfigModule } from '@nestjs/config';
       port: 3306,
       username: 'fenfurna_lopo',     // Cambiar según tu configuración
       password: 'b&jTYe?&t^S!', // Cambiar según tu configuración
-      database: 'fenfurna_futball',
+      database: 'fenfurna_football',
       entities: [Jugador,User,Club, Asociacion, Region],  // Todas las entidades que usaremos
       synchronize: true, 
       connectTimeout: 10000,
