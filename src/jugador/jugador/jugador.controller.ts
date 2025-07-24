@@ -335,49 +335,50 @@ export class JugadoresController {
 
 
 
-  @Post('validar-rut-imagen')
+@Post('validar-rut-imagen')
 @UseInterceptors(FileInterceptor('foto', { storage: memoryStorage() }))
 async validarRutImagen(@UploadedFile() foto: Express.Multer.File) {
   if (!foto) {
     throw new BadRequestException('Debe subir una imagen');
   }
 
-  // Procesamiento con sharp: escala, gris, mejora contraste
+  // Preprocesamiento de imagen
   const imagenProcesada = await sharp(foto.buffer)
-    .resize({ width: 400, withoutEnlargement: true }) // escala max 400px ancho
+    .resize({ width: 600, withoutEnlargement: true }) // Mayor ancho para mejor OCR
     .grayscale()
-    .normalize() // mejora contraste y brillo
+    .normalize()
+    .sharpen()
+    .toFormat('jpeg')
     .toBuffer();
 
-  // Convertir imagen procesada a base64 para Tesseract
   const imageBase64 = `data:image/jpeg;base64,${imagenProcesada.toString('base64')}`;
 
-  // OCR con Tesseract
+  // OCR
   const { data } = await Tesseract.recognize(imageBase64, 'spa');
+  const texto = data.text.replace(/\s+/g, ' ').toUpperCase(); // Limpieza general
+  console.log('Texto detectado por OCR:', texto);
 
-  // Extraer posibles RUTs
-  const posiblesRuts = this.extraerRuts(data.text);
-  for (const posibleRut of posiblesRuts) {
-  const rutFormateado = this.formatearRutConPuntos(posibleRut);
-  if (rutFormateado) {
-    const usuarioExistente = await this.jugadoresRepository.findOne({ where: { rut: rutFormateado } });
-    if (!usuarioExistente) {
-      return { mensaje: 'RUT válido y no registrado', rut: rutFormateado };
+  // Expresión regular mejorada (RUT antiguo: con puntos; RUT nuevo: sin puntos)
+  const rutRegex = /\b(\d{1,2}(?:\.\d{3}){2}-[\dkK]|\d{7,8}-[\dkK])\b/g;
+  const encontrados = [...texto.matchAll(rutRegex)];
+
+  const ruts = encontrados.map(r => r[1]).map(rut => this.formatearRutConPuntos(rut));
+
+  for (const rut of ruts) {
+    const existe = await this.jugadoresRepository.findOne({ where: { rut } });
+    if (!existe) {
+      return { mensaje: 'RUT válido y no registrado', rut };
     } else {
-      return { mensaje: 'RUT válido y registrado', rut: rutFormateado };
+      return { mensaje: 'RUT válido y registrado', rut };
     }
   }
+
+  return {
+    mensaje: 'No se encontró un RUT válido en la imagen',
+    posiblesRuts: ruts
+  };
 }
-  console.log('Posibles RUTs extraídos:', posiblesRuts);
 
-
-
-  // Validar cada RUT extraído
-
-
-
-  return { mensaje: 'No se encontró un RUT válido en la imagen',posiblesRuts: posiblesRuts.map(r => this.formatearRut(r)) };
-}
 
 private extraerRuts(texto: string): string[] {
   console.log('Texto extraído por OCR:', texto);
@@ -492,31 +493,69 @@ private formatearRut(rutNormalizado: string): string {
 }
 
 
-private formatearRutConPuntos(rut: string): string {
-  // Elimina puntos y guion si existen
-  rut = rut.replace(/\./g, '').replace(/-/g, '');
-
-  if (rut.length < 2) {
-    console.warn('RUT demasiado corto:', rut);
-    return rut; // Devuelve el original si es inválido
-  }
-
+formatearRutConPuntos(rut: string): string {
+  rut = rut.replace(/\./g, '').replace(/-/g, '').toUpperCase();
   const cuerpo = rut.slice(0, -1);
-  const dv = rut.slice(-1).toUpperCase();
+  const dv = rut.slice(-1);
 
-  // Agrega los puntos desde el final hacia el inicio
-  let cuerpoFormateado = '';
-  let contador = 0;
-  for (let i = cuerpo.length - 1; i >= 0; i--) {
-    cuerpoFormateado = cuerpo.charAt(i) + cuerpoFormateado;
-    contador++;
-    if (contador % 3 === 0 && i !== 0) {
-      cuerpoFormateado = '.' + cuerpoFormateado;
+  let conPuntos = '';
+  let i = cuerpo.length;
+  while (i > 3) {
+    conPuntos = '.' + cuerpo.slice(i - 3, i) + conPuntos;
+    i -= 3;
+  }
+  conPuntos = cuerpo.slice(0, i) + conPuntos;
+
+  return `${conPuntos}-${dv}`;
+}
+async procesarCarnet(imagePath: string): Promise<{ rut: string | null; nombre: string | null }> {
+    try {
+      const result = await Tesseract.recognize(imagePath, 'spa', {
+        logger: m => console.log(m),
+      });
+
+      const texto = result.data.text;
+      console.log('Texto detectado:\n', texto);
+
+      const rut = this.extraerRut(texto);
+      const nombre = this.extraerNombre(texto);
+
+      return { rut, nombre };
+    } catch (error) {
+      console.error('Error en OCR:', error);
+      return { rut: null, nombre: null };
     }
   }
 
-  return `${cuerpoFormateado}-${dv}`;
-}
+  private extraerRut(texto: string): string | null {
+    const rutRegex = /(\d{1,2}\.?\d{3}\.?\d{3}-[0-9Kk])/;
+    const match = texto.match(rutRegex);
+    return match ? match[1] : null;
+  }
+
+  private extraerNombre(texto: string): string | null {
+    const lineas = texto
+      .split('\n')
+      .map(linea => linea.trim())
+      .filter(Boolean);
+
+    // Buscar línea antes del RUT que tenga mayúsculas y no números
+    for (let i = 0; i < lineas.length; i++) {
+      if (/\d{1,2}\.?\d{3}\.?\d{3}-[0-9Kk]/.test(lineas[i]) && i > 0) {
+        const posibleNombre = lineas[i - 1];
+        if (/^[A-ZÁÉÍÓÚÑ ]{5,}$/.test(posibleNombre)) {
+          return posibleNombre;
+        }
+      }
+    }
+
+    // Alternativa: buscar línea en mayúsculas sin números
+    const alternativa = lineas.find(
+      linea => /^[A-ZÁÉÍÓÚÑ ]{5,}$/.test(linea) && !/\d/.test(linea),
+    );
+
+    return alternativa || null;
+  }
 
   @Get('buscar/:rut')
   async buscarPorRut(@Param('rut') rut: string) {

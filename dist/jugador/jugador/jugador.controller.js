@@ -139,27 +139,32 @@ let JugadoresController = class JugadoresController {
             throw new common_1.BadRequestException('Debe subir una imagen');
         }
         const imagenProcesada = await sharp(foto.buffer)
-            .resize({ width: 400, withoutEnlargement: true })
+            .resize({ width: 600, withoutEnlargement: true })
             .grayscale()
             .normalize()
+            .sharpen()
+            .toFormat('jpeg')
             .toBuffer();
         const imageBase64 = `data:image/jpeg;base64,${imagenProcesada.toString('base64')}`;
         const { data } = await Tesseract.recognize(imageBase64, 'spa');
-        const posiblesRuts = this.extraerRuts(data.text);
-        for (const posibleRut of posiblesRuts) {
-            const rutFormateado = this.formatearRutConPuntos(posibleRut);
-            if (rutFormateado) {
-                const usuarioExistente = await this.jugadoresRepository.findOne({ where: { rut: rutFormateado } });
-                if (!usuarioExistente) {
-                    return { mensaje: 'RUT válido y no registrado', rut: rutFormateado };
-                }
-                else {
-                    return { mensaje: 'RUT válido y registrado', rut: rutFormateado };
-                }
+        const texto = data.text.replace(/\s+/g, ' ').toUpperCase();
+        console.log('Texto detectado por OCR:', texto);
+        const rutRegex = /\b(\d{1,2}(?:\.\d{3}){2}-[\dkK]|\d{7,8}-[\dkK])\b/g;
+        const encontrados = [...texto.matchAll(rutRegex)];
+        const ruts = encontrados.map(r => r[1]).map(rut => this.formatearRutConPuntos(rut));
+        for (const rut of ruts) {
+            const existe = await this.jugadoresRepository.findOne({ where: { rut } });
+            if (!existe) {
+                return { mensaje: 'RUT válido y no registrado', rut };
+            }
+            else {
+                return { mensaje: 'RUT válido y registrado', rut };
             }
         }
-        console.log('Posibles RUTs extraídos:', posiblesRuts);
-        return { mensaje: 'No se encontró un RUT válido en la imagen', posiblesRuts: posiblesRuts.map(r => this.formatearRut(r)) };
+        return {
+            mensaje: 'No se encontró un RUT válido en la imagen',
+            posiblesRuts: ruts
+        };
     }
     extraerRuts(texto) {
         console.log('Texto extraído por OCR:', texto);
@@ -247,23 +252,54 @@ let JugadoresController = class JugadoresController {
         return `${cuerpoFormateado}-${dv.toUpperCase()}`;
     }
     formatearRutConPuntos(rut) {
-        rut = rut.replace(/\./g, '').replace(/-/g, '');
-        if (rut.length < 2) {
-            console.warn('RUT demasiado corto:', rut);
-            return rut;
-        }
+        rut = rut.replace(/\./g, '').replace(/-/g, '').toUpperCase();
         const cuerpo = rut.slice(0, -1);
-        const dv = rut.slice(-1).toUpperCase();
-        let cuerpoFormateado = '';
-        let contador = 0;
-        for (let i = cuerpo.length - 1; i >= 0; i--) {
-            cuerpoFormateado = cuerpo.charAt(i) + cuerpoFormateado;
-            contador++;
-            if (contador % 3 === 0 && i !== 0) {
-                cuerpoFormateado = '.' + cuerpoFormateado;
+        const dv = rut.slice(-1);
+        let conPuntos = '';
+        let i = cuerpo.length;
+        while (i > 3) {
+            conPuntos = '.' + cuerpo.slice(i - 3, i) + conPuntos;
+            i -= 3;
+        }
+        conPuntos = cuerpo.slice(0, i) + conPuntos;
+        return `${conPuntos}-${dv}`;
+    }
+    async procesarCarnet(imagePath) {
+        try {
+            const result = await Tesseract.recognize(imagePath, 'spa', {
+                logger: m => console.log(m),
+            });
+            const texto = result.data.text;
+            console.log('Texto detectado:\n', texto);
+            const rut = this.extraerRut(texto);
+            const nombre = this.extraerNombre(texto);
+            return { rut, nombre };
+        }
+        catch (error) {
+            console.error('Error en OCR:', error);
+            return { rut: null, nombre: null };
+        }
+    }
+    extraerRut(texto) {
+        const rutRegex = /(\d{1,2}\.?\d{3}\.?\d{3}-[0-9Kk])/;
+        const match = texto.match(rutRegex);
+        return match ? match[1] : null;
+    }
+    extraerNombre(texto) {
+        const lineas = texto
+            .split('\n')
+            .map(linea => linea.trim())
+            .filter(Boolean);
+        for (let i = 0; i < lineas.length; i++) {
+            if (/\d{1,2}\.?\d{3}\.?\d{3}-[0-9Kk]/.test(lineas[i]) && i > 0) {
+                const posibleNombre = lineas[i - 1];
+                if (/^[A-ZÁÉÍÓÚÑ ]{5,}$/.test(posibleNombre)) {
+                    return posibleNombre;
+                }
             }
         }
-        return `${cuerpoFormateado}-${dv}`;
+        const alternativa = lineas.find(linea => /^[A-ZÁÉÍÓÚÑ ]{5,}$/.test(linea) && !/\d/.test(linea));
+        return alternativa || null;
     }
     async buscarPorRut(rut) {
         const jugador = await this.jugadoresService.buscarPorRut(rut);

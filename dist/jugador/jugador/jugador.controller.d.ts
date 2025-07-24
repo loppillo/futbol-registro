@@ -99,7 +99,13 @@ export declare class JugadoresController {
     private normalizarRut;
     private validarRutChileno;
     private formatearRut;
-    private formatearRutConPuntos;
+    formatearRutConPuntos(rut: string): string;
+    procesarCarnet(imagePath: string): Promise<{
+        rut: string | null;
+        nombre: string | null;
+    }>;
+    private extraerRut;
+    private extraerNombre;
     buscarPorRut(rut: string): Promise<Jugador>;
     buscarPorClub(club_deportivo: string, req: any): Promise<Jugador[]>;
     private convertirFechaExcel;
