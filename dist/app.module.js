@@ -11,16 +11,11 @@ const common_1 = require("@nestjs/common");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const jugador_module_1 = require("./jugador/jugador/jugador.module");
-const jugador_entity_1 = require("./jugador/jugador/entities/jugador.entity");
 const typeorm_1 = require("@nestjs/typeorm");
-const usuario_entity_1 = require("./usuario/usuario/usuario/entities/usuario.entity");
 const usuario_module_1 = require("./usuario/usuario/usuario/usuario.module");
 const asociacion_module_1 = require("./asociacion/asociacion/asociacion.module");
 const club_module_1 = require("./club/club/club.module");
 const region_module_1 = require("./region/region/region.module");
-const club_entity_1 = require("./club/club/entities/club.entity");
-const asociacion_entity_1 = require("./asociacion/asociacion/entities/asociacion.entity");
-const region_entity_1 = require("./region/region/entities/region.entity");
 const auth_module_1 = require("./auth/auth.module");
 const config_1 = require("@nestjs/config");
 let AppModule = class AppModule {
@@ -29,22 +24,24 @@ exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forRoot({
-                type: 'mysql',
-                host: 'localhost',
-                port: 3306,
-                username: 'fenfurna_lopo',
-                password: 'b&jTYe?&t^S!',
-                database: 'fenfurna_football',
-                entities: [jugador_entity_1.Jugador, usuario_entity_1.User, club_entity_1.Club, asociacion_entity_1.Asociacion, region_entity_1.Region],
-                synchronize: true,
-                connectTimeout: 10000,
-                multipleStatements: true,
-                extra: {
-                    enableKeepAlive: true,
-                    keepAliveInitialDelay: 10000,
-                    connectionLimit: 10,
-                },
+            typeorm_1.TypeOrmModule.forRootAsync({
+                imports: [config_1.ConfigModule],
+                inject: [config_1.ConfigService],
+                useFactory: (configService) => ({
+                    type: 'mysql',
+                    host: configService.get('DB_HOST'),
+                    port: configService.get('DB_PORT', 3306),
+                    username: configService.get('DB_USERNAME'),
+                    password: configService.get('DB_PASSWORD'),
+                    database: configService.get('DB_DATABASE'),
+                    autoLoadEntities: true,
+                    synchronize: false,
+                    extra: {
+                        enableKeepAlive: true,
+                        keepAliveInitialDelay: 10000,
+                        connectionLimit: 10,
+                    },
+                }),
             }),
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
