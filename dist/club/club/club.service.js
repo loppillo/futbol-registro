@@ -30,12 +30,26 @@ let ClubService = class ClubService {
         return this.clubRepo.find({ relations: ['asociacion'] });
     }
     async create(data) {
-        const club = this.clubRepo.create(data);
-        return this.clubRepo.save(club);
+        if (data['asociacionId'] && !data.asociacion) {
+            data.asociacion = { id: Number(data['asociacionId']) };
+        }
+        const nuevoClub = await this.clubRepo.save(this.clubRepo.create(data));
+        return this.clubRepo.findOne({
+            where: { id: nuevoClub.id },
+            relations: ['asociacion', 'asociacion.region'],
+        });
     }
     async update(id, data) {
-        await this.clubRepo.update(id, data);
-        return this.clubRepo.findOneBy({ id });
+        const club = await this.clubRepo.findOneBy({ id });
+        if (!club) {
+            throw new common_1.NotFoundException(`Club con ID ${id} no encontrado`);
+        }
+        const { asociacionId, ...restData } = data;
+        Object.assign(club, restData);
+        if (asociacionId) {
+            club.asociacion = { id: asociacionId };
+        }
+        return await this.clubRepo.save(club);
     }
     async delete(id) {
         await this.clubRepo.delete(id);
@@ -85,7 +99,7 @@ let ClubService = class ClubService {
                 console.log(`Fila ${index + 1}: Club guardado exitosamente: ${club.name}`);
             }
             catch (error) {
-                console.error(`Error en fila ${index + 1}: ${error.message}`);
+                console.error(`Error en fila ${index + 1}: ${error}`);
             }
         }
         return { message: 'Importación completada exitosamente' };

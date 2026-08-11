@@ -10,10 +10,10 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.JwtStrategy = void 0;
-const decorators_1 = require("@nestjs/common/decorators");
-const constants_1 = require("./constants");
+const common_1 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
 const passport_jwt_1 = require("passport-jwt");
+const constants_1 = require("./constants");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     constructor() {
         super({
@@ -23,17 +23,21 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
         });
     }
     async validate(payload) {
+        if (!payload) {
+            throw new common_1.UnauthorizedException();
+        }
         return {
             userId: payload.sub,
-            username: payload.username,
+            email: payload.email,
             role: payload.role,
             regionId: payload.regionId,
+            region: payload.region,
         };
     }
 };
 exports.JwtStrategy = JwtStrategy;
 exports.JwtStrategy = JwtStrategy = __decorate([
-    (0, decorators_1.Injectable)(),
+    (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [])
 ], JwtStrategy);
 //# sourceMappingURL=jwt.strategy.js.map

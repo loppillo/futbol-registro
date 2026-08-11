@@ -15,4 +15,8 @@ export class Club {
 
   @OneToMany(() => Jugador, (player) => player.club)
   jugadores: Jugador[];
+
+  @Column({ nullable: true })
+  asociacionId: number;
+  
 }

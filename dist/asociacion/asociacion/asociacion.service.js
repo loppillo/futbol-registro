@@ -25,12 +25,26 @@ let AsociacionService = class AsociacionService {
         return this.asociacionRepo.find({ relations: ['region'] });
     }
     async create(data) {
-        const asociacion = this.asociacionRepo.create(data);
-        return this.asociacionRepo.save(asociacion);
+        if (data['regionId'] && !data.region) {
+            data.region = { id: Number(data['regionId']) };
+        }
+        const nuevaAsociacion = await this.asociacionRepo.save(this.asociacionRepo.create(data));
+        return this.asociacionRepo.findOne({
+            where: { id: nuevaAsociacion.id },
+            relations: ['region'],
+        });
     }
     async update(id, data) {
-        await this.asociacionRepo.update(id, data);
-        return this.asociacionRepo.findOneBy({ id });
+        const asociacion = await this.asociacionRepo.findOneBy({ id });
+        if (!asociacion) {
+            throw new common_1.NotFoundException(`Asociación con ID ${id} no encontrada`);
+        }
+        const { regionId, ...restData } = data;
+        Object.assign(asociacion, restData);
+        if (regionId) {
+            asociacion.region = { id: regionId };
+        }
+        return await this.asociacionRepo.save(asociacion);
     }
     async delete(id) {
         await this.asociacionRepo.delete(id);

@@ -12,294 +12,74 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.JugadoresController = exports.Users = void 0;
+exports.JugadoresController = exports.ActualizacionMasivaDto = void 0;
 const common_1 = require("@nestjs/common");
-const jugador_service_1 = require("./jugador.service");
-const create_jugador_dto_1 = require("./dto/create-jugador.dto");
-const update_jugador_dto_1 = require("./dto/update-jugador.dto");
+const passport_1 = require("@nestjs/passport");
 const platform_express_1 = require("@nestjs/platform-express");
-const XLSX = require("xlsx");
 const multer_1 = require("multer");
-const uuid_1 = require("uuid");
 const path_1 = require("path");
 const fs = require("fs");
-const path = require("path");
-const PaginationDto_dto_1 = require("./dto/PaginationDto.dto");
-const typeorm_1 = require("@nestjs/typeorm");
-const jugador_entity_1 = require("./entities/jugador.entity");
-const typeorm_2 = require("typeorm");
 const sharp = require("sharp");
-const auth_guard_1 = require("../../auth/guard/auth.guard");
-const jwt_strategy_1 = require("../../auth/jwt.strategy");
-const Tesseract = require('tesseract.js');
-const storage = (0, multer_1.diskStorage)({
-    destination: './uploads/jugadores',
-    filename: (req, file, cb) => {
-        const uniqueSuffix = (0, uuid_1.v4)() + (0, path_1.extname)(file.originalname);
-        cb(null, uniqueSuffix);
+const tesseract_js_1 = require("tesseract.js");
+const jugador_service_1 = require("./jugador.service");
+const create_jugador_dto_1 = require("./dto/create-jugador.dto");
+const PaginationDto_dto_1 = require("./dto/PaginationDto.dto");
+const class_validator_1 = require("class-validator");
+class ActualizacionMasivaDto {
+}
+exports.ActualizacionMasivaDto = ActualizacionMasivaDto;
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], ActualizacionMasivaDto.prototype, "ids", void 0);
+const playerStorage = (0, multer_1.diskStorage)({
+    destination: './uploads/players',
+    filename: (_req, file, callback) => {
+        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        callback(null, `player-${uniqueSuffix}${(0, path_1.extname)(file.originalname)}`);
+    },
+});
+const imageFileFilter = (_req, file, callback) => {
+    const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+        return callback(new common_1.BadRequestException('Solo se permiten formatos .png, .jpg y .jpeg'), false);
     }
-});
-exports.Users = (0, common_1.createParamDecorator)((data, ctx) => {
-    const request = ctx.switchToHttp().getRequest();
-    return request.user;
-});
+    callback(null, true);
+};
 let JugadoresController = class JugadoresController {
-    constructor(jugadoresService, jugadoresRepository) {
+    constructor(jugadoresService) {
         this.jugadoresService = jugadoresService;
-        this.jugadoresRepository = jugadoresRepository;
-    }
-    async Player(file, playerData) {
-        if (!file)
-            throw new common_1.BadRequestException('Se requiere una imagen');
-        const imagePath = `/players/${file.filename}`;
-        playerData.foto = imagePath;
-        const player = await this.jugadoresService.create(playerData);
-        return { message: 'Jugador creado con éxito', player };
-    }
-    async obtenerDuplicados(page = 1, limit = 10) {
-        const pageNumber = isNaN(Number(page)) ? 1 : Number(page);
-        const limitNumber = isNaN(Number(limit)) ? 10 : Number(limit);
-        const skip = (pageNumber - 1) * limitNumber;
-        return this.jugadoresService.obtenerDuplicados(page, limit);
-    }
-    async obtenerDuplicadosExcel() {
-        return this.jugadoresService.obtenerDuplicadosSinPaginacion();
     }
     async createPlayer(file, playerData) {
-        if (!file) {
-            throw new common_1.BadRequestException('Se requiere una imagen para crear el jugador.');
-        }
-        const imagePath = `https://fenfurnacional.com/uploads/players/${file.filename}`;
-        const player = await this.jugadoresService.createPlayer({ ...playerData });
+        const player = await this.jugadoresService.createPlayer(playerData, file);
         return {
             message: 'Jugador creado con éxito',
             player,
-            imageUrl: imagePath
         };
     }
-    async getPlayers(paginationDto) {
-        return this.jugadoresService.findAll(paginationDto);
-    }
-    async importExcel(file) {
-        const imagePath = file.path;
-        return await this.jugadoresService.importFromExcel(imagePath);
-    }
-    async getJugadores(page = 1, limit = 10) {
-        return this.jugadoresService.findAllPaginated(page, limit);
-    }
-    async getJugadorPorId(id) {
-        return await this.jugadoresService.obtenerJugadorPorId(id);
-    }
-    async upPlayer(id, file, updateJugadorDto) {
-        let imageUrl = updateJugadorDto.foto;
-        if (file) {
-            const filePath = `uploads/players/${file.filename}`;
-            imageUrl = `https://fenfurnacional.com/uploads/players/${file.filename}`;
-            updateJugadorDto.foto = filePath;
-            console.log(updateJugadorDto.foto);
-        }
-        const updatedPlayer = await this.jugadoresService.updatePlay(id, updateJugadorDto);
+    async updatePlayer(id, file, updateJugadorDto) {
+        const updatedPlayer = await this.jugadoresService.updatePlay(id, updateJugadorDto, file);
         return {
             message: 'Jugador actualizado con éxito',
-            player: {
-                ...updatedPlayer,
-                foto: imageUrl
-            },
+            player: updatedPlayer,
         };
     }
-    remove(id) {
-        return this.jugadoresService.deletePlay(+id);
+    async getPlayers(paginationDto, req) {
+        const user = req.user;
+        return this.jugadoresService.findAll(paginationDto, user);
     }
-    volver(id) {
-        return this.jugadoresService.volverPlay(+id);
+    async getJugadoresPaginated(page = 1, limit = 10) {
+        return this.jugadoresService.findAll({ page, limit }, undefined);
     }
-    async importarJugadores(file) {
-        if (!file) {
-            throw new common_1.BadRequestException('No se ha proporcionado ningún archivo');
-        }
-        const workbook = XLSX.readFile(file.path);
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jugadores = XLSX.utils.sheet_to_json(worksheet);
-        const jugadoresConFechaConvertida = jugadores.map((jugador) => {
-            return {
-                rut: jugador.rut || 'No dato',
-                nombre: jugador.nombre || 'No dato',
-                materno: jugador.materno || 'No dato',
-                paterno: jugador.paterno || 'No dato',
-                fecha_nacimiento: jugador.fecha_nacimiento || 'No dato',
-                fecha_inscripcion: jugador.fecha_inscripcion || '2024-08-20'
-            };
+    async obtenerDuplicados(paginationDto) {
+        return this.jugadoresService.obtenerDuplicados(paginationDto);
+    }
+    async obtenerDuplicadosExcel() {
+        return this.jugadoresService.obtenerDuplicados({
+            page: 1,
+            limit: 10000,
         });
-        const resultado = await this.jugadoresService.importarJugadores(jugadoresConFechaConvertida);
-        return resultado;
-    }
-    async validarRutImagen(foto) {
-        if (!foto) {
-            throw new common_1.BadRequestException('Debe subir una imagen');
-        }
-        const imagenProcesada = await sharp(foto.buffer)
-            .resize({ width: 600, withoutEnlargement: true })
-            .grayscale()
-            .normalize()
-            .sharpen()
-            .toFormat('jpeg')
-            .toBuffer();
-        const imageBase64 = `data:image/jpeg;base64,${imagenProcesada.toString('base64')}`;
-        const { data } = await Tesseract.recognize(imageBase64, 'spa');
-        const texto = data.text.replace(/\s+/g, ' ').toUpperCase();
-        console.log('Texto detectado por OCR:', texto);
-        const rutRegex = /\b(\d{1,2}(?:\.\d{3}){2}-[\dkK]|\d{7,8}-[\dkK])\b/g;
-        const encontrados = [...texto.matchAll(rutRegex)];
-        const ruts = encontrados.map(r => r[1]).map(rut => this.formatearRutConPuntos(rut));
-        for (const rut of ruts) {
-            const existe = await this.jugadoresRepository.findOne({ where: { rut } });
-            if (!existe) {
-                return { mensaje: 'RUT válido y no registrado', rut };
-            }
-            else {
-                return { mensaje: 'RUT válido y registrado', rut };
-            }
-        }
-        return {
-            mensaje: 'No se encontró un RUT válido en la imagen',
-            posiblesRuts: ruts
-        };
-    }
-    extraerRuts(texto) {
-        console.log('Texto extraído por OCR:', texto);
-        const rutsSet = new Set();
-        const runExtraido = this.extraerRunDelTexto(texto);
-        if (runExtraido) {
-            rutsSet.add(this.normalizarRut(runExtraido));
-        }
-        const formatoClasico = /\b\d{1,2}\.\d{3}\.\d{3}-[0-9Kk]\b/g;
-        const matchesClasico = texto.match(formatoClasico);
-        if (matchesClasico) {
-            matchesClasico.forEach(rut => rutsSet.add(this.normalizarRut(rut)));
-        }
-        const formatoSimple = /\b\d{7,8}-[0-9Kk]\b/g;
-        const matchesSimple = texto.match(formatoSimple);
-        if (matchesSimple) {
-            matchesSimple.forEach(rut => rutsSet.add(this.normalizarRut(rut)));
-        }
-        const formatoSinGuion = /\b\d{7,8}[0-9Kk]\b/g;
-        const matchesSinGuion = texto.match(formatoSinGuion);
-        if (matchesSinGuion) {
-            matchesSinGuion.forEach(r => {
-                const cuerpo = r.slice(0, -1);
-                const dv = r.slice(-1).toUpperCase();
-                rutsSet.add(this.normalizarRut(`${cuerpo}-${dv}`));
-            });
-        }
-        return Array.from(rutsSet);
-    }
-    extraerRunDelTexto(texto) {
-        const regex = /(\d{1,2}[\.\s]?\d{3}[\.\s]?\d{3})[\s\-]?(\d|[Kk])/g;
-        let match;
-        while ((match = regex.exec(texto)) !== null) {
-            let [, parteNumerica, dv] = match;
-            const cuerpo = parteNumerica.replace(/[\.\s]/g, '');
-            dv = dv.toUpperCase();
-            return `${cuerpo}-${dv}`;
-        }
-        return null;
-    }
-    normalizarRut(rut) {
-        rut = rut.replace(/\./g, '').replace(/-/g, '');
-        const cuerpo = rut.slice(0, -1);
-        const dv = rut.slice(-1).toUpperCase();
-        return `${cuerpo}-${dv}`;
-    }
-    validarRutChileno(rut) {
-        const rutLimpio = rut.replace(/\./g, '').replace(/-/g, '').toUpperCase();
-        const cuerpo = rutLimpio.slice(0, -1);
-        const dv = rutLimpio.slice(-1);
-        let suma = 0;
-        let multiplo = 2;
-        for (let i = cuerpo.length - 1; i >= 0; i--) {
-            suma += parseInt(cuerpo.charAt(i)) * multiplo;
-            multiplo = multiplo < 7 ? multiplo + 1 : 2;
-        }
-        const dvEsperado = 11 - (suma % 11);
-        const dvCalculado = dvEsperado === 11 ? '0' : dvEsperado === 10 ? 'K' : dvEsperado.toString();
-        if (dv === dvCalculado) {
-            return this.formatearRut(cuerpo);
-        }
-        else {
-            return false;
-        }
-    }
-    formatearRut(rutNormalizado) {
-        if (!rutNormalizado.includes('-')) {
-            console.warn('RUT malformado recibido en formatearRut:', rutNormalizado);
-            return rutNormalizado;
-        }
-        const [cuerpo, dv] = rutNormalizado.split('-');
-        if (!cuerpo || !dv) {
-            console.warn('Cuerpo o dígito verificador inválido:', rutNormalizado);
-            return rutNormalizado;
-        }
-        let cuerpoFormateado = '';
-        let contador = 0;
-        for (let i = cuerpo.length - 1; i >= 0; i--) {
-            cuerpoFormateado = cuerpo.charAt(i) + cuerpoFormateado;
-            contador++;
-            if (contador % 3 === 0 && i !== 0) {
-                cuerpoFormateado = '.' + cuerpoFormateado;
-            }
-        }
-        return `${cuerpoFormateado}-${dv.toUpperCase()}`;
-    }
-    formatearRutConPuntos(rut) {
-        rut = rut.replace(/\./g, '').replace(/-/g, '').toUpperCase();
-        const cuerpo = rut.slice(0, -1);
-        const dv = rut.slice(-1);
-        let conPuntos = '';
-        let i = cuerpo.length;
-        while (i > 3) {
-            conPuntos = '.' + cuerpo.slice(i - 3, i) + conPuntos;
-            i -= 3;
-        }
-        conPuntos = cuerpo.slice(0, i) + conPuntos;
-        return `${conPuntos}-${dv}`;
-    }
-    async procesarCarnet(imagePath) {
-        try {
-            const result = await Tesseract.recognize(imagePath, 'spa', {
-                logger: m => console.log(m),
-            });
-            const texto = result.data.text;
-            console.log('Texto detectado:\n', texto);
-            const rut = this.extraerRut(texto);
-            const nombre = this.extraerNombre(texto);
-            return { rut, nombre };
-        }
-        catch (error) {
-            console.error('Error en OCR:', error);
-            return { rut: null, nombre: null };
-        }
-    }
-    extraerRut(texto) {
-        const rutRegex = /(\d{1,2}\.?\d{3}\.?\d{3}-[0-9Kk])/;
-        const match = texto.match(rutRegex);
-        return match ? match[1] : null;
-    }
-    extraerNombre(texto) {
-        const lineas = texto
-            .split('\n')
-            .map(linea => linea.trim())
-            .filter(Boolean);
-        for (let i = 0; i < lineas.length; i++) {
-            if (/\d{1,2}\.?\d{3}\.?\d{3}-[0-9Kk]/.test(lineas[i]) && i > 0) {
-                const posibleNombre = lineas[i - 1];
-                if (/^[A-ZÁÉÍÓÚÑ ]{5,}$/.test(posibleNombre)) {
-                    return posibleNombre;
-                }
-            }
-        }
-        const alternativa = lineas.find(linea => /^[A-ZÁÉÍÓÚÑ ]{5,}$/.test(linea) && !/\d/.test(linea));
-        return alternativa || null;
     }
     async buscarPorRut(rut) {
         const jugador = await this.jugadoresService.buscarPorRut(rut);
@@ -308,116 +88,213 @@ let JugadoresController = class JugadoresController {
         }
         return jugador;
     }
-    async buscarPorClub(club_deportivo, req) {
+    async buscarPorClub(clubDeportivo, req) {
         const user = req.user;
-        if (user.role === 'dirigente' && !user.region) {
-            throw new common_1.UnauthorizedException('Access denied: Region is required for dirigente');
-        }
-        const jugadores = await this.jugadoresService.buscarPorClub(club_deportivo, user.region);
-        if (jugadores.length === 0) {
-            throw new common_1.NotFoundException('No se encontraron jugadores para el club deportivo especificado');
-        }
-        return jugadores;
+        const regionName = user?.region?.name || user?.regionName || '';
+        return this.jugadoresService.findAll({
+            clubName: clubDeportivo,
+            regionName,
+            page: 1,
+            limit: 1000,
+        });
     }
-    convertirFechaExcel(fechaExcel) {
-        if (!fechaExcel || isNaN(fechaExcel)) {
-            return '2023-08-20';
-        }
-        const fechaBase = new Date(1900, 0, fechaExcel - 1);
-        fechaBase.setDate(fechaBase.getDate() + 1);
-        return fechaBase.toISOString().split('T')[0];
+    async getJugadorPorId(id) {
+        return await this.jugadoresService.findOne(id);
     }
-    async uploadFile(file, id) {
-        return { message: 'Imagen subida exitosamente', filename: file.filename };
+    remove(id) {
+        return this.jugadoresService.deletePlay(id);
+    }
+    volver(id) {
+        return this.jugadoresService.volverPlay(id);
+    }
+    async eliminarMasivo(ids) {
+        if (!ids || ids.length === 0) {
+            throw new common_1.BadRequestException('Debe proporcionar al menos un ID para eliminar.');
+        }
+        return await this.jugadoresService.deleteMany(ids);
+    }
+    async importExcel(file) {
+        if (!file) {
+            throw new common_1.BadRequestException('Se requiere un archivo Excel.');
+        }
+        return await this.jugadoresService.importFromExcel(file.path);
+    }
+    async validarRutImagen(foto) {
+        if (!foto) {
+            throw new common_1.BadRequestException('Debe subir una imagen del carnet.');
+        }
+        try {
+            const imagenProcesada = await sharp(foto.buffer)
+                .resize({ width: 1400, withoutEnlargement: true })
+                .grayscale()
+                .linear(1.3, -15)
+                .sharpen()
+                .toFormat('jpeg', { quality: 90 })
+                .toBuffer();
+            const { data } = await (0, tesseract_js_1.recognize)(imagenProcesada, 'spa');
+            const rutsValidos = this.extraerYValidarRuts(data.text);
+            for (const rutFormateado of rutsValidos) {
+                const jugador = await this.jugadoresService.buscarPorRut(rutFormateado);
+                if (!jugador) {
+                    return {
+                        mensaje: 'RUT válido y no registrado',
+                        rut: rutFormateado,
+                    };
+                }
+                else {
+                    return {
+                        mensaje: 'RUT válido y registrado',
+                        rut: rutFormateado,
+                        nombreCompleto: `${jugador.nombre || ''} ${jugador.paterno || ''} ${jugador.materno || ''}`.trim(),
+                        nombre: jugador.nombre,
+                        paterno: jugador.paterno,
+                        sancionado: jugador.sancionado,
+                        recalificado: jugador.recalificado,
+                        materno: jugador.materno,
+                        club: jugador.club?.name || 'Sin Club',
+                        asociacion: jugador.club?.asociacion?.name || 'Sin Asociación',
+                        region: jugador.club?.asociacion?.region?.name || 'Sin Región',
+                    };
+                }
+            }
+            return {
+                mensaje: 'No se encontró un RUT válido en la imagen',
+                posiblesRuts: rutsValidos,
+            };
+        }
+        catch (error) {
+            console.log('Error detallado en validarRutImagen:', error);
+            throw new common_1.InternalServerErrorException(`Error al procesar la imagen del carnet: ${error || error}`);
+        }
     }
     async getPhotoByJugadorId(id, res) {
         try {
             const directoryPath = (0, path_1.join)(process.cwd(), 'uploads/players');
-            console.log('Path de la carpeta:', directoryPath);
-            console.log('ID del jugador:', id);
             if (!fs.existsSync(directoryPath)) {
-                console.error('El directorio no existe:', directoryPath);
                 return res.status(404).json({ message: 'Directorio no existe' });
             }
             const files = fs.readdirSync(directoryPath);
-            console.log('Archivos en la carpeta:', files);
-            const playerImage = files.find(file => file.includes(`player-${id}-`));
+            const playerImage = files.find((file) => file.includes(`player-${id}-`));
             if (playerImage) {
-                console.log('Imagen encontrada:', playerImage);
-                const filePath = (0, path_1.join)(directoryPath, playerImage);
-                return res.sendFile(filePath);
+                return res.sendFile((0, path_1.join)(directoryPath, playerImage));
             }
             else {
-                console.error('Imagen no encontrada para el jugador con ID:', id);
                 return res.status(404).json({ message: 'Imagen no encontrada' });
             }
         }
         catch (error) {
-            console.error('Error general:', error);
             return res.status(500).json({ message: 'Error en el servidor' });
         }
     }
-    async updatePlayer(id, file, updatePlayerDto) {
-        let imagePath;
-        if (file) {
-            imagePath = `uploads/jugadores/${file.filename}`;
+    extraerYValidarRuts(texto) {
+        const rutsEncontrados = new Set();
+        const textoLimpio = texto
+            .toUpperCase()
+            .replace(/[\’\'\`\´\“\”\/\$\%\*\:\;\<\>]/g, ' ')
+            .replace(/\s+/g, ' ');
+        const regexRut = /(\d{1,2}[\.\s]?\d{3}[\.\s]?\d{3}|\d{7,8})[-_\s]?([\dK])/g;
+        const coincidencias = [...textoLimpio.matchAll(regexRut)];
+        for (const match of coincidencias) {
+            const cuerpo = match[1].replace(/[^\d]/g, '');
+            const dvLeido = match[2].toUpperCase();
+            if (cuerpo.length >= 7 && cuerpo.length <= 8) {
+                if (this.validarRutModulo11(cuerpo, dvLeido)) {
+                    rutsEncontrados.add(this.formatearRutConPuntos(`${cuerpo}-${dvLeido}`));
+                }
+                else {
+                    const dvCalculado = this.obtenerDvModulo11(cuerpo);
+                    rutsEncontrados.add(this.formatearRutConPuntos(`${cuerpo}-${dvCalculado}`));
+                }
+            }
         }
-        const updatedPlayer = await this.jugadoresService.updatePlay(id, updatePlayerDto);
-        return {
-            message: 'Jugador updated successfully',
-            player: {
-                ...updatedPlayer,
-                imagePath: imagePath || updatedPlayer.foto,
-            },
-        };
+        return Array.from(rutsEncontrados);
     }
-    async upload(file) {
-        if (!file || !file.originalname.endsWith('.xlsx')) {
-            return { message: 'Por favor, sube un archivo Excel válido.' };
+    obtenerDvModulo11(cuerpo) {
+        let suma = 0;
+        let multiplicador = 2;
+        for (let i = cuerpo.length - 1; i >= 0; i--) {
+            suma += parseInt(cuerpo.charAt(i), 10) * multiplicador;
+            multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
         }
-        const { mainData, referenceData } = this.jugadoresService.processExcel(file.buffer);
-        const filledData = this.jugadoresService.fillMissingData(mainData, referenceData);
-        return filledData;
+        const resto = 11 - (suma % 11);
+        if (resto === 11)
+            return '0';
+        if (resto === 10)
+            return 'K';
+        return resto.toString();
     }
-    async uploadPhoto(id, file) {
-        const filePath = `uploads/${file.filename}`;
-        await this.jugadoresService.updateJugadorPhoto(id, filePath);
-        return { filePath };
+    validarRutModulo11(cuerpo, dvIngresado) {
+        return this.obtenerDvModulo11(cuerpo) === dvIngresado.toUpperCase();
+    }
+    formatearRutConPuntos(rut) {
+        const limpio = rut.replace(/[^0-9kK]/g, '').toUpperCase();
+        if (limpio.length < 2)
+            return rut;
+        const cuerpo = limpio.slice(0, -1);
+        const dv = limpio.slice(-1);
+        const conPuntos = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return `${conPuntos}-${dv}`;
+    }
+    async marcarComoDuplicadosMasivo(dto) {
+        return await this.jugadoresService.marcarComoDuplicadosMasivo(dto.ids);
+    }
+    async restaurarMasivo(dto) {
+        return await this.jugadoresService.restaurarMasivo(dto.ids);
+    }
+    async obtenerDuplicadosPorRegion(regionId, paginationDto) {
+        return this.jugadoresService.obtenerDuplicadosPorRegion(regionId, paginationDto);
     }
 };
 exports.JugadoresController = JugadoresController;
 __decorate([
-    (0, common_1.Post)('create'),
+    (0, common_1.Post)(),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('foto', {
-        storage: (0, multer_1.diskStorage)({
-            destination: './uploads/players',
-            filename: (req, file, callback) => {
-                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-                const filename = `player-${uniqueSuffix}${(0, path_1.extname)(file.originalname)}`;
-                callback(null, filename);
-            },
-        }),
+        storage: playerStorage,
         limits: { fileSize: 5 * 1024 * 1024 },
-        fileFilter: (req, file, callback) => {
-            const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg'];
-            if (!allowedMimeTypes.includes(file.mimetype)) {
-                return callback(new common_1.BadRequestException('Only .png, .jpg and .jpeg formats are allowed'), false);
-            }
-            callback(null, true);
-        },
+        fileFilter: imageFileFilter,
     })),
     __param(0, (0, common_1.UploadedFile)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, create_jugador_dto_1.CreateJugadorDto]),
     __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "Player", null);
+], JugadoresController.prototype, "createPlayer", null);
 __decorate([
-    (0, common_1.Get)('duplicados'),
+    (0, common_1.Put)(':id'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('foto', {
+        storage: playerStorage,
+        limits: { fileSize: 5 * 1024 * 1024 },
+        fileFilter: imageFileFilter,
+    })),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.UploadedFile)()),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object, Object]),
+    __metadata("design:returntype", Promise)
+], JugadoresController.prototype, "updatePlayer", null);
+__decorate([
+    (0, common_1.Get)('obtener'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [PaginationDto_dto_1.PaginationDto, Object]),
+    __metadata("design:returntype", Promise)
+], JugadoresController.prototype, "getPlayers", null);
+__decorate([
+    (0, common_1.Get)('l'),
     __param(0, (0, common_1.Query)('page')),
     __param(1, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number, Number]),
+    __metadata("design:returntype", Promise)
+], JugadoresController.prototype, "getJugadoresPaginated", null);
+__decorate([
+    (0, common_1.Get)('duplicados'),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [PaginationDto_dto_1.PaginationDto]),
     __metadata("design:returntype", Promise)
 ], JugadoresController.prototype, "obtenerDuplicados", null);
 __decorate([
@@ -427,47 +304,56 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], JugadoresController.prototype, "obtenerDuplicadosExcel", null);
 __decorate([
-    (0, common_1.Post)('creates'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('foto', {
-        storage: (0, multer_1.diskStorage)({
-            destination: './uploads/players',
-            filename: (req, file, callback) => {
-                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-                const ext = (0, path_1.extname)(file.originalname);
-                const filename = `player-${uniqueSuffix}${ext}`;
-                callback(null, filename);
-            },
-        }),
-        limits: { fileSize: 5 * 1024 * 1024 },
-        fileFilter: (req, file, callback) => {
-            const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg'];
-            if (!allowedMimeTypes.includes(file.mimetype)) {
-                return callback(new common_1.BadRequestException('Only .png, .jpg and .jpeg formats are allowed'), false);
-            }
-            callback(null, true);
-        },
-    })),
-    __param(0, (0, common_1.UploadedFile)()),
-    __param(1, (0, common_1.Body)()),
+    (0, common_1.Get)('buscar/:rut'),
+    __param(0, (0, common_1.Param)('rut')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, create_jugador_dto_1.CreateJugadorDto]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "createPlayer", null);
+], JugadoresController.prototype, "buscarPorRut", null);
 __decorate([
-    (0, common_1.Get)('obtener'),
-    __param(0, (0, common_1.Query)()),
+    (0, common_1.Get)('buscarEquipo/:club_deportivo'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Param)('club_deportivo')),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [PaginationDto_dto_1.PaginationDto]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "getPlayers", null);
+], JugadoresController.prototype, "buscarPorClub", null);
+__decorate([
+    (0, common_1.Get)(':id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", Promise)
+], JugadoresController.prototype, "getJugadorPorId", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], JugadoresController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Delete)('volver/:id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], JugadoresController.prototype, "volver", null);
+__decorate([
+    (0, common_1.Post)('eliminar-masivo'),
+    __param(0, (0, common_1.Body)('ids')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Array]),
+    __metadata("design:returntype", Promise)
+], JugadoresController.prototype, "eliminarMasivo", null);
 __decorate([
     (0, common_1.Post)('excel'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
         storage: (0, multer_1.diskStorage)({
             destination: './uploads/jugadores',
-            filename: (req, file, callback) => {
-                const filename = `${Date.now()}-${file.originalname}`;
-                callback(null, filename);
+            filename: (_req, file, callback) => {
+                callback(null, `${Date.now()}-${file.originalname}`);
             },
         }),
     })),
@@ -477,79 +363,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], JugadoresController.prototype, "importExcel", null);
 __decorate([
-    (0, common_1.Get)('l'),
-    __param(0, (0, common_1.Query)('page')),
-    __param(1, (0, common_1.Query)('limit')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number]),
-    __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "getJugadores", null);
-__decorate([
-    (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
-    __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "getJugadorPorId", null);
-__decorate([
-    (0, common_1.Put)(':id'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('foto', {
-        storage: (0, multer_1.diskStorage)({
-            destination: './uploads/players',
-            filename: (req, file, callback) => {
-                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-                const ext = (0, path_1.extname)(file.originalname);
-                const filename = `player-${uniqueSuffix}${ext}`;
-                callback(null, filename);
-            },
-        }),
-        limits: { fileSize: 5 * 1024 * 1024 },
-        fileFilter: (req, file, callback) => {
-            const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg'];
-            if (!allowedMimeTypes.includes(file.mimetype)) {
-                return callback(new common_1.BadRequestException('Solo se permiten archivos .png, .jpg y .jpeg'), false);
-            }
-            callback(null, true);
-        },
-    })),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.UploadedFile)()),
-    __param(2, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, Object]),
-    __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "upPlayer", null);
-__decorate([
-    (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
-    __metadata("design:returntype", void 0)
-], JugadoresController.prototype, "remove", null);
-__decorate([
-    (0, common_1.Delete)('/volver/:id'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
-    __metadata("design:returntype", void 0)
-], JugadoresController.prototype, "volver", null);
-__decorate([
-    (0, common_1.Post)('upload'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
-        storage: (0, multer_1.diskStorage)({
-            destination: './uploads',
-            filename: (_req, file, cb) => {
-                const filename = `${Date.now()}-${file.originalname}`;
-                cb(null, filename);
-            },
-        }),
-    })),
-    __param(0, (0, common_1.UploadedFile)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "importarJugadores", null);
-__decorate([
     (0, common_1.Post)('validar-rut-imagen'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('foto', { storage: (0, multer_1.memoryStorage)() })),
     __param(0, (0, common_1.UploadedFile)()),
@@ -557,40 +370,6 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], JugadoresController.prototype, "validarRutImagen", null);
-__decorate([
-    (0, common_1.Get)('buscar/:rut'),
-    __param(0, (0, common_1.Param)('rut')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "buscarPorRut", null);
-__decorate([
-    (0, common_1.UseGuards)(jwt_strategy_1.JwtStrategy),
-    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
-    (0, common_1.Get)('buscarEquipo/:club_deportivo'),
-    __param(0, (0, common_1.Param)('club_deportivo')),
-    __param(1, (0, common_1.Req)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
-    __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "buscarPorClub", null);
-__decorate([
-    (0, common_1.Post)('upload/:id'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
-        storage: (0, multer_1.diskStorage)({
-            destination: './uploads/jugadores',
-            filename: (req, file, cb) => {
-                const filename = `${req.params.id}-${Date.now()}-${file.originalname}`;
-                cb(null, filename);
-            },
-        }),
-    })),
-    __param(0, (0, common_1.UploadedFile)()),
-    __param(1, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
-    __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "uploadFile", null);
 __decorate([
     (0, common_1.Get)('photo/:id'),
     __param(0, (0, common_1.Param)('id')),
@@ -600,54 +379,29 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], JugadoresController.prototype, "getPhotoByJugadorId", null);
 __decorate([
-    (0, common_1.Put)('update/:id'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('image', {
-        storage: (0, multer_1.diskStorage)({
-            destination: './uploads/jugadores',
-            filename: (req, file, callback) => {
-                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-                const extension = (0, path_1.extname)(file.originalname);
-                callback(null, `${req.params.id}-${uniqueSuffix}${extension}`);
-            },
-        }),
-    })),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.UploadedFile)()),
-    __param(2, (0, common_1.Body)()),
+    (0, common_1.Patch)('marcar-duplicados-masivo'),
+    __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, update_jugador_dto_1.UpdateJugadorDto]),
+    __metadata("design:paramtypes", [ActualizacionMasivaDto]),
     __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "updatePlayer", null);
+], JugadoresController.prototype, "marcarComoDuplicadosMasivo", null);
 __decorate([
-    (0, common_1.Post)('uploads'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
-    __param(0, (0, common_1.UploadedFile)()),
+    (0, common_1.Patch)('restaurar-masivo'),
+    __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [ActualizacionMasivaDto]),
     __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "upload", null);
+], JugadoresController.prototype, "restaurarMasivo", null);
 __decorate([
-    (0, common_1.Post)(':id/uploadPhoto'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
-        storage: (0, multer_1.diskStorage)({
-            destination: './uploads',
-            filename: (req, file, callback) => {
-                const filename = `${Date.now()}${path.extname(file.originalname)}`;
-                callback(null, filename);
-            },
-        }),
-        limits: { fileSize: 5 * 1024 * 1024 },
-    })),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.UploadedFile)()),
+    (0, common_1.Get)('duplicados/region/:regionId'),
+    __param(0, (0, common_1.Param)('regionId')),
+    __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:paramtypes", [Number, PaginationDto_dto_1.PaginationDto]),
     __metadata("design:returntype", Promise)
-], JugadoresController.prototype, "uploadPhoto", null);
+], JugadoresController.prototype, "obtenerDuplicadosPorRegion", null);
 exports.JugadoresController = JugadoresController = __decorate([
     (0, common_1.Controller)('jugadores'),
-    __param(1, (0, typeorm_1.InjectRepository)(jugador_entity_1.Jugador)),
-    __metadata("design:paramtypes", [jugador_service_1.JugadoresService,
-        typeorm_2.Repository])
+    __metadata("design:paramtypes", [jugador_service_1.JugadoresService])
 ], JugadoresController);
 //# sourceMappingURL=jugador.controller.js.map

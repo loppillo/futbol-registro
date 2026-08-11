@@ -9,7 +9,7 @@ export declare class ClubService {
     constructor(clubRepo: Repository<Club>, regionRepo: Repository<Region>, associationRepo: Repository<Asociacion>);
     findAll(): Promise<Club[]>;
     create(data: Partial<Club>): Promise<Club>;
-    update(id: number, data: Partial<Club>): Promise<Club>;
+    update(id: number, data: any): Promise<Club>;
     delete(id: number): Promise<void>;
     importClubsFromExcel(filePath: string): Promise<{
         message: string;

@@ -5,4 +5,5 @@ export declare class Club {
     name: string;
     asociacion: Asociacion;
     jugadores: Jugador[];
+    asociacionId: number;
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateClubDto } from './dto/create-club.dto';
 import { UpdateClubDto } from './dto/update-club.dto';
 import { Repository } from 'typeorm';
@@ -23,16 +23,44 @@ export class ClubService {
     return this.clubRepo.find({ relations: ['asociacion'] });
   }
   
-  async create(data: Partial<Club>): Promise<Club> {
-    const club = this.clubRepo.create(data);
-    return this.clubRepo.save(club);
+ async create(data: Partial<Club>): Promise<Club> {
+  // 1. Mapea asociacionId como objeto de relación si viene como ID numérico desde el formulario
+  if (data['asociacionId'] && !data.asociacion) {
+    data.asociacion = { id: Number(data['asociacionId']) } as any;
   }
 
-  async update(id: number, data: Partial<Club>): Promise<Club> {
-    await this.clubRepo.update(id, data);
-    return this.clubRepo.findOneBy({ id });
+  // 2. Guarda el club en la base de datos
+  const nuevoClub = await this.clubRepo.save(
+    this.clubRepo.create(data),
+  );
+
+  // 3. Retorna el club recargado con sus relaciones anidadas
+  return this.clubRepo.findOne({
+    where: { id: nuevoClub.id },
+    relations: ['asociacion', 'asociacion.region'], // 👈 Carga la asociación y su región correspondiente
+  });
+}
+
+async update(id: number, data: any): Promise<Club> {
+  const club = await this.clubRepo.findOneBy({ id });
+  if (!club) {
+    throw new NotFoundException(`Club con ID ${id} no encontrado`);
   }
 
+  // Extraemos asociacionId si viene en la data
+  const { asociacionId, ...restData } = data;
+
+  // Asignamos las propiedades básicas
+  Object.assign(club, restData);
+
+  // Si enviaron asociacionId, asignamos la relación como objeto
+  if (asociacionId) {
+    club.asociacion = { id: asociacionId } as any;
+  }
+
+  // .save() maneja correctamente las relaciones e inserta/actualiza FKs
+  return await this.clubRepo.save(club);
+}
   async delete(id: number): Promise<void> {
     await this.clubRepo.delete(id);
   }
@@ -96,7 +124,7 @@ export class ClubService {
         await this.clubRepo.save(club);
         console.log(`Fila ${index + 1}: Club guardado exitosamente: ${club.name}`);
       } catch (error) {
-        console.error(`Error en fila ${index + 1}: ${error.message}`);
+        console.error(`Error en fila ${index + 1}: ${error}`);
       }
     }
   

@@ -21,7 +21,7 @@ async function bootstrap() {
         whitelist: true,
         forbidNonWhitelisted: true,
     }));
-    app.use('/uploads', express.static((0, path_1.join)(__dirname, '..', 'uploads')));
+    app.use('/uploads', express.static((0, path_1.join)(process.cwd(), 'uploads')));
     await app.listen(4000);
 }
 bootstrap();

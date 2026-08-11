@@ -25,7 +25,7 @@ const logger = new Logger('Bootstrap');
     whitelist: true,       // opcional, para eliminar propiedades no declaradas
     forbidNonWhitelisted: true,
   }));
-  app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
+ app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
   
   

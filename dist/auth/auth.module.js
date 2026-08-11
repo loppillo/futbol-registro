@@ -8,12 +8,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthModule = void 0;
 const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const passport_1 = require("@nestjs/passport");
 const jwt_1 = require("@nestjs/jwt");
-const auth_controller_1 = require("./auth.controller");
 const auth_service_1 = require("./auth.service");
+const auth_controller_1 = require("./auth.controller");
+const jwt_strategy_1 = require("./jwt.strategy");
 const constants_1 = require("./constants");
 const usuario_module_1 = require("../usuario/usuario/usuario/usuario.module");
-const typeorm_1 = require("@nestjs/typeorm");
 const region_entity_1 = require("../region/region/entities/region.entity");
 let AuthModule = class AuthModule {
 };
@@ -22,15 +24,16 @@ exports.AuthModule = AuthModule = __decorate([
     (0, common_1.Module)({
         imports: [
             usuario_module_1.UsuarioModule,
-            typeorm_1.TypeOrmModule.forFeature([region_entity_1.Region]),
+            passport_1.PassportModule.register({ defaultStrategy: 'jwt' }),
             jwt_1.JwtModule.register({
-                global: true,
                 secret: constants_1.jwtConstants.secret,
-                signOptions: { expiresIn: '1d' },
+                signOptions: { expiresIn: '8h' },
             }),
+            typeorm_1.TypeOrmModule.forFeature([region_entity_1.Region]),
         ],
         controllers: [auth_controller_1.AuthController],
-        providers: [auth_service_1.AuthService],
+        providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy],
+        exports: [auth_service_1.AuthService, passport_1.PassportModule, jwt_1.JwtModule, jwt_strategy_1.JwtStrategy],
     })
 ], AuthModule);
 //# sourceMappingURL=auth.module.js.map

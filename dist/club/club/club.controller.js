@@ -44,7 +44,7 @@ let ClubController = class ClubController {
             return result;
         }
         catch (error) {
-            throw new common_1.BadRequestException(`Error al importar: ${error.message}`);
+            throw new common_1.BadRequestException(`Error al importar: ${error}`);
         }
     }
 };

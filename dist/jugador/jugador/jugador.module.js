@@ -16,6 +16,7 @@ const region_entity_1 = require("../../region/region/entities/region.entity");
 const asociacion_entity_1 = require("../../asociacion/asociacion/entities/asociacion.entity");
 const jugador_controller_1 = require("./jugador.controller");
 const jugador_service_1 = require("./jugador.service");
+const auth_module_1 = require("../../auth/auth.module");
 let JugadorModule = class JugadorModule {
 };
 exports.JugadorModule = JugadorModule;
@@ -26,6 +27,7 @@ exports.JugadorModule = JugadorModule = __decorate([
             typeorm_1.TypeOrmModule.forFeature([club_entity_1.Club]),
             typeorm_1.TypeOrmModule.forFeature([region_entity_1.Region]),
             typeorm_1.TypeOrmModule.forFeature([asociacion_entity_1.Asociacion]),
+            auth_module_1.AuthModule,
             platform_express_1.MulterModule.register({
                 dest: './uploads',
                 limits: { fileSize: 10 * 1024 * 1024 },

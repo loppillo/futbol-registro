@@ -13,6 +13,7 @@ import { Asociacion } from 'src/asociacion/asociacion/entities/asociacion.entity
 
 import { JugadoresController } from './jugador.controller';
 import { JugadoresService } from './jugador.service';
+import { AuthModule } from 'src/auth/auth.module';
 
 
 
@@ -23,7 +24,7 @@ import { JugadoresService } from './jugador.service';
     TypeOrmModule.forFeature([Club]),
     TypeOrmModule.forFeature([Region]),
     TypeOrmModule.forFeature([Asociacion]),
-
+    AuthModule,
     MulterModule.register({
       dest: './uploads',
       limits: { fileSize: 10 * 1024 * 1024 }, // Limitar tamaño a 10MB

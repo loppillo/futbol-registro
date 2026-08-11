@@ -32,6 +32,10 @@ __decorate([
     (0, typeorm_1.OneToMany)(() => jugador_entity_1.Jugador, (player) => player.club),
     __metadata("design:type", Array)
 ], Club.prototype, "jugadores", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", Number)
+], Club.prototype, "asociacionId", void 0);
 exports.Club = Club = __decorate([
     (0, typeorm_1.Entity)()
 ], Club);

@@ -31,7 +31,7 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             typeorm_1.TypeOrmModule.forRoot({
                 type: 'mysql',
-                host: '162.241.61.254',
+                host: 'localhost',
                 port: 3306,
                 username: 'fenfurna_lopo',
                 password: 'b&jTYe?&t^S!',
@@ -40,6 +40,11 @@ exports.AppModule = AppModule = __decorate([
                 synchronize: true,
                 connectTimeout: 10000,
                 multipleStatements: true,
+                extra: {
+                    enableKeepAlive: true,
+                    keepAliveInitialDelay: 10000,
+                    connectionLimit: 10,
+                },
             }),
             config_1.ConfigModule.forRoot({
                 isGlobal: true,

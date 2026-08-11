@@ -19,6 +19,7 @@ export declare class AuthService {
         access_token: string;
         email: string;
         role: string;
+        regionId: number;
         region: string;
     }>;
     profile({ email, role }: {

@@ -14,6 +14,7 @@ export declare class AuthController {
         access_token: string;
         email: string;
         role: string;
+        regionId: number;
         region: string;
     }>;
 }

@@ -55,7 +55,7 @@ export class ClubController {
       const result = await this.clubService.importClubsFromExcel(imagePath);
       return result;
     } catch (error) {
-      throw new BadRequestException(`Error al importar: ${error.message}`);
+      throw new BadRequestException(`Error al importar: ${error}`);
     } // Get the correct path from the uploaded file
     
   }

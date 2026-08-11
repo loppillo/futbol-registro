@@ -5,6 +5,6 @@ export declare class AsociacionService {
     constructor(asociacionRepo: Repository<Asociacion>);
     findAll(): Promise<Asociacion[]>;
     create(data: Partial<Asociacion>): Promise<Asociacion>;
-    update(id: number, data: Partial<Asociacion>): Promise<Asociacion>;
+    update(id: number, data: any): Promise<Asociacion>;
     delete(id: number): Promise<void>;
 }

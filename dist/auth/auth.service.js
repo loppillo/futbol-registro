@@ -52,18 +52,25 @@ let AuthService = class AuthService {
     async login({ email, password }) {
         const user = await this.usersService.findByEmailWithPassword(email);
         if (!user) {
-            throw new common_1.UnauthorizedException('email is wrong');
+            throw new common_1.UnauthorizedException('Credenciales inválidas');
         }
         const isPasswordValid = await bcryptjs.compare(password, user.password);
         if (!isPasswordValid) {
-            throw new common_1.UnauthorizedException('password is wrong');
+            throw new common_1.UnauthorizedException('Credenciales inválidas');
         }
-        const payload = { email: user.email, role: user.role, region: user.region?.name };
+        const payload = {
+            sub: user.id,
+            email: user.email,
+            role: user.role,
+            regionId: user.region?.id,
+            region: user.region?.name
+        };
         const token = await this.jwtService.signAsync(payload);
         return {
             access_token: token,
             email: user.email,
             role: user.role,
+            regionId: user.region?.id,
             region: user.region?.name,
         };
     }

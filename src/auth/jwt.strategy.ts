@@ -1,9 +1,9 @@
 // jwt.strategy.ts
 
-import { Injectable } from "@nestjs/common/decorators";
-import { jwtConstants } from "./constants";
+import { Injectable, UnauthorizedException } from "@nestjs/common"; // 👈 IMPORTANTE: Desde '@nestjs/common'
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
+import { jwtConstants } from "./constants";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -16,12 +16,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    // Aquí asignas el payload al usuario y lo retornas
+    if (!payload) {
+      throw new UnauthorizedException();
+    }
+
+    // Esto es lo que estará disponible en req.user en tus controladores
     return { 
       userId: payload.sub, 
-      username: payload.username, 
+      email: payload.email, 
       role: payload.role, 
-      regionId: payload.regionId, // Asegúrate de devolver regionId
+      regionId: payload.regionId,
+      region: payload.region,
     };
   }
 }

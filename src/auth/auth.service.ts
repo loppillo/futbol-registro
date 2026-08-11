@@ -52,30 +52,38 @@ export class AuthService {
     };
   }
   
-
-  async login({ email, password }: LoginDto) {
-    const user = await this.usersService.findByEmailWithPassword(email);
-    
-    if (!user) {
-      throw new UnauthorizedException('email is wrong');
-    }
+// auth.service.ts
+async login({ email, password }: LoginDto) {
+  const user = await this.usersService.findByEmailWithPassword(email);
   
-    const isPasswordValid = await bcryptjs.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('password is wrong');
-    }
-  
-    // Asegúrate de que 'region' contenga la información correcta
-    const payload = { email: user.email, role: user.role, region: user.region?.name };
-    const token = await this.jwtService.signAsync(payload);
-  
-    return {
-      access_token:token,
-      email: user.email,
-      role: user.role, // Traer role desde el usuario registrado
-      region: user.region?.name, // Traer el nombre de la región desde la relación
-    };
+  if (!user) {
+    throw new UnauthorizedException('Credenciales inválidas');
   }
+
+  const isPasswordValid = await bcryptjs.compare(password, user.password);
+  if (!isPasswordValid) {
+    throw new UnauthorizedException('Credenciales inválidas');
+  }
+
+  // Incluimos tanto el ID de la región como el Nombre en el payload
+  const payload = { 
+    sub: user.id,
+    email: user.email, 
+    role: user.role, 
+    regionId: user.region?.id, 
+    region: user.region?.name 
+  };
+
+  const token = await this.jwtService.signAsync(payload);
+
+  return {
+    access_token: token,
+    email: user.email,
+    role: user.role,
+    regionId: user.region?.id,
+    region: user.region?.name,
+  };
+}
   
   async profile({ email, role }: { email: string; role: string }) {
     return await this.usersService.findOneByEmail(email);
